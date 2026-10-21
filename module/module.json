@@ -225,7 +225,7 @@
     {
       "name": "export_image",
       "title": "Salvar imagem",
-      "description": "Salva a imagem (todas as camadas juntas) num arquivo. Sem path, salva em ImagensPiphin Foto.",
+      "description": "Salva a imagem (todas as camadas juntas) num arquivo. Sem path, salva em Imagens\\Piphin Foto.",
       "input": {
         "type": "object",
         "properties": {
