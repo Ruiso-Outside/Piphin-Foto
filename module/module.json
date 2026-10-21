@@ -1,0 +1,260 @@
+{
+  "id": "foto",
+  "name": "Piphin Foto",
+  "version": "0.0.0",
+  "description": "Editor de imagens completo: camadas, seleções, pincéis, texto, ajustes e filtros.",
+  "main": "backend.js",
+  "ui": "web/index.html",
+  "icon": "icons/foto.png",
+  "accent": "#fb923c",
+  "minHub": "1.4.0",
+  "reservedKeys": [
+    "ctrl+1",
+    "ctrl+2",
+    "ctrl+3"
+  ],
+  "tools": [
+    {
+      "name": "image_info",
+      "title": "Ver a imagem aberta",
+      "readOnly": true,
+      "description": "Mostra a imagem aberta no Piphin Foto: nome, tamanho em pixels, camadas e se há seleção.",
+      "input": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "open_image",
+      "title": "Abrir imagem",
+      "description": "Abre um arquivo de imagem (PNG, JPG, WebP, GIF, BMP) ou projeto .pfoto no Piphin Foto para editar.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Caminho completo do arquivo"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "adjust_image",
+      "title": "Ajustar cores e luz",
+      "description": "Ajusta a camada ativa (ou a seleção). Valores de -100 a 100; 0 = sem mudança. Ex.: brightness 20 clareia, saturation -100 deixa em preto e branco, temperature positivo esquenta.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "brightness": {
+            "type": "number",
+            "description": "-100 a 100"
+          },
+          "contrast": {
+            "type": "number",
+            "description": "-100 a 100"
+          },
+          "saturation": {
+            "type": "number",
+            "description": "-100 a 100"
+          },
+          "hue": {
+            "type": "number",
+            "description": "rotação da cor em graus, -180 a 180"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "-100 (frio/azul) a 100 (quente/laranja)"
+          },
+          "exposure": {
+            "type": "number",
+            "description": "-100 a 100"
+          }
+        }
+      }
+    },
+    {
+      "name": "apply_filter",
+      "title": "Aplicar filtro",
+      "description": "Aplica um filtro na camada ativa (ou na seleção).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "enum": [
+              "blur",
+              "sharpen",
+              "noise",
+              "pixelate",
+              "vignette",
+              "grayscale",
+              "sepia",
+              "invert",
+              "emboss",
+              "threshold",
+              "posterize"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "description": "Intensidade, de 1 a 100 (padrão 50)"
+          }
+        },
+        "required": [
+          "filter"
+        ]
+      }
+    },
+    {
+      "name": "transform_image",
+      "title": "Redimensionar, girar ou espelhar",
+      "description": "Redimensiona a imagem inteira, gira ou espelha. Informe width/height em pixels (mantém a proporção se só um for dado) ou percent.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "number",
+            "description": "nova largura"
+          },
+          "height": {
+            "type": "number",
+            "description": "nova altura"
+          },
+          "percent": {
+            "type": "number",
+            "description": "escala em %"
+          },
+          "rotate": {
+            "type": "number",
+            "enum": [
+              90,
+              180,
+              270
+            ]
+          },
+          "flip": {
+            "type": "string",
+            "enum": [
+              "horizontal",
+              "vertical"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "crop_image",
+      "title": "Recortar",
+      "description": "Recorta a imagem. Use x, y, width, height em pixels, ou aspect (ex.: \"1:1\", \"16:9\") para um recorte centralizado.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": "pixels"
+          },
+          "y": {
+            "type": "number",
+            "description": "pixels"
+          },
+          "width": {
+            "type": "number",
+            "description": "pixels"
+          },
+          "height": {
+            "type": "number",
+            "description": "pixels"
+          },
+          "aspect": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "add_text",
+      "title": "Escrever texto",
+      "description": "Cria uma camada de texto editável na imagem.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "top",
+              "center",
+              "bottom",
+              "top-left",
+              "top-right",
+              "bottom-left",
+              "bottom-right"
+            ],
+            "description": "Onde colocar (padrão bottom)"
+          },
+          "size": {
+            "type": "number",
+            "description": "tamanho da fonte em pixels (padrão: 8% da altura)"
+          },
+          "color": {
+            "type": "string",
+            "description": "Cor, ex.: #ffffff"
+          },
+          "font": {
+            "type": "string",
+            "description": "Fonte, ex.: Segoe UI, Impact, Georgia"
+          },
+          "bold": {
+            "type": "boolean"
+          },
+          "outline": {
+            "type": "boolean",
+            "description": "Contorno escuro para ler sobre qualquer fundo"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "export_image",
+      "title": "Salvar imagem",
+      "description": "Salva a imagem (todas as camadas juntas) num arquivo. Sem path, salva em ImagensPiphin Foto.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpg",
+              "webp"
+            ]
+          },
+          "quality": {
+            "type": "number",
+            "description": "1 a 100, para jpg e webp (padrão 92)"
+          }
+        }
+      }
+    },
+    {
+      "name": "undo",
+      "title": "Desfazer",
+      "description": "Desfaz a última alteração no Piphin Foto.",
+      "input": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

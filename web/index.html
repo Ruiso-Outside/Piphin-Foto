@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: piphin:; style-src 'self' 'unsafe-inline' piphin:; script-src 'self'; font-src 'self' data: piphin:">
+  <title>Piphin Foto</title>
+  <link rel="stylesheet" href="piphin://ui/kit.css">
+  <link rel="stylesheet" href="icons.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="in-hub">
+  <header class="topbar">
+    <div class="brand"><i class="i i-image"></i>Foto</div>
+    <nav class="menus" id="menus"></nav>
+    <div class="tabs" id="tabs"></div>
+    <div class="grow"></div>
+    <button class="btn sm icon ghost" data-cmd="undo" title="Desfazer (Ctrl+Z)"><i class="i i-undo-2"></i></button>
+    <button class="btn sm icon ghost" data-cmd="redo" title="Refazer (Ctrl+Shift+Z)"><i class="i i-redo-2"></i></button>
+    <button class="btn sm primary" data-cmd="export"><i class="i i-download"></i>Exportar</button>
+  </header>
+  <div class="optbar" id="optbar"></div>
+
+  <div class="work">
+    <aside class="toolbar" id="toolbar">
+      <div id="toolBtns"></div>
+      <div class="grow"></div>
+      <div class="swatches" title="Cor principal e secundária (X troca, D volta ao padrão)">
+        <button class="sw bg" id="swBg"></button>
+        <button class="sw fg" id="swFg"></button>
+        <button class="sw-mini swap" data-cmd="swap-colors" title="Trocar (X)"><i class="i i-arrow-left-right"></i></button>
+        <button class="sw-mini reset" data-cmd="reset-colors" title="Preto e branco (D)"></button>
+      </div>
+    </aside>
+
+    <div class="stage" id="stage">
+      <canvas id="view"></canvas>
+      <textarea id="textEdit" class="text-edit" spellcheck="false" hidden></textarea>
+      <section class="home" id="home"></section>
+      <div class="drop-hint" id="dropHint" hidden><i class="i i-image-plus"></i><span>Solte a imagem aqui</span></div>
+    </div>
+
+    <aside class="panels" id="panels">
+      <section class="panel" id="pnlColor">
+        <header><span>Cor</span></header>
+        <div class="color-body" id="colorBody"></div>
+      </section>
+      <section class="panel grow" id="pnlLayers">
+        <header><span>Camadas</span>
+          <div class="row-btns">
+            <button class="btn sm icon ghost" data-cmd="layer-new" title="Nova camada (Ctrl+Shift+N)"><i class="i i-plus"></i></button>
+            <button class="btn sm icon ghost" data-cmd="layer-dup" title="Duplicar (Ctrl+J)"><i class="i i-copy"></i></button>
+            <button class="btn sm icon ghost" data-cmd="layer-merge" title="Mesclar para baixo (Ctrl+E)"><i class="i i-merge"></i></button>
+            <button class="btn sm icon ghost" data-cmd="layer-del" title="Apagar camada"><i class="i i-trash-2"></i></button>
+          </div>
+        </header>
+        <div class="layer-props" id="layerProps"></div>
+        <div class="layer-list" id="layerList"></div>
+      </section>
+      <section class="panel" id="pnlHistory">
+        <header><span>Histórico</span></header>
+        <div class="history-list" id="historyList"></div>
+      </section>
+    </aside>
+  </div>
+  <footer class="statusbar" id="statusbar">
+    <span id="stZoom"></span><span id="stSize"></span><span id="stPos"></span><span id="stInfo" class="grow"></span><span id="stHint"></span>
+  </footer>
+
+  <div class="menu-pop" id="menuPop" hidden></div>
+  <div id="modal" class="modal" hidden><div class="modal-box" id="modalBox"></div></div>
+  <div id="toasts" class="toasts"></div>
+
+  <script src="js/core.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/view.js"></script>
+  <script src="js/ops.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/io.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
