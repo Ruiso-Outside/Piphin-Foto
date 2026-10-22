@@ -16,7 +16,7 @@ lock-open merge arrow-up arrow-down chevron-down chevron-right chevron-up image 
 file-image sliders-horizontal sun contrast palette droplet droplets thermometer-sun aperture sparkles wand flip-horizontal-2
 flip-vertical-2 rotate-cw rotate-ccw scaling expand shrink grid-3x3 sun-moon swords waves ruler x check settings
 repeat-2 arrow-left-right ellipsis-vertical keyboard info clipboard-paste scissors square-dashed-mouse-pointer bold italic
-align-left align-center align-right text-cursor-input spline highlighter focus frame pipette bot layout-grid star clock
+align-left align-center align-right text-cursor-input spline highlighter focus frame pipette bot layout-grid star clock library
 `.split(/\s+/).filter(Boolean);
 
 const css = [`/* Piphin Foto · ícones (Lucide ${require(path.join(LUCIDE, "package.json")).version}, ISC) · gerado por scripts/make-icons.js */`,

@@ -1,7 +1,7 @@
 {
   "name": "piphin-foto",
   "productName": "Piphin Foto",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Piphin Foto: editor de imagens completo, módulo do Piphin Hub",
   "author": "Piphin Studio",
   "private": true,

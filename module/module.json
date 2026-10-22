@@ -8,6 +8,7 @@
   "icon": "icons/foto.png",
   "accent": "#fb923c",
   "minHub": "1.4.0",
+  "opens": ["image"],
   "reservedKeys": [
     "ctrl+1",
     "ctrl+2",

@@ -11,6 +11,9 @@ Editor de imagens completo, módulo do [Piphin Hub](https://github.com/Ruiso-Out
 - **Arquivos**: abrir PNG, JPG, WebP, GIF, BMP; colar da área de transferência; arrastar e soltar; projeto editável (`.pfoto`); exportar PNG, JPG e WebP
 - **IA**: com o Piphin LLM, a IA pode abrir, ajustar, filtrar, recortar, redimensionar, escrever texto e salvar imagens (ferramentas no `module/module.json`)
 
+## Mídia do Hub
+Com o Piphin Hub 1.7.0 ou mais novo: **Da Mídia** no início (e Arquivo → Abrir da Mídia do Hub) abre prints do Piphin Captura e imagens dos outros módulos, **Abrir no Piphin Foto** de outro módulo abre a imagem aqui, e as imagens exportadas aparecem na Mídia.
+
 ## Estrutura
 
 - `module/`: `module.json` (manifesto e ferramentas da IA) e `backend.js` (arquivos, área de transferência e ponte da IA)

@@ -255,6 +255,7 @@
     undo: needDoc(() => { const l = doc().undo(); if (l) PF.status("Desfeito: " + l); }), redo: needDoc(() => { const l = doc().redo(); if (l) PF.status("Refeito: " + l); }),
     copy: needDoc(() => io.copy()), "copy-merged": needDoc(() => io.copy({ merged: true })), cut: needDoc(() => io.copy({ cut: true })),
     paste: () => io.paste(), "paste-new": () => io.paste({ newDocument: true }),
+    library: async () => { try { const r = await PF.call("library-pick"); if (r) await io.openLoaded(r); } catch (e) { PF.toast(e.message, "err"); } },
     clear: needDoc(() => ops.clearSelection()), "fill-fg": needDoc(() => ops.fillSelection(S.fg)), "fill-bg": needDoc(() => ops.fillSelection(S.bg)),
     transform: needDoc(transformDialog),
     "image-size": needDoc(imageSizeDialog), "canvas-size": needDoc(canvasSizeDialog),
@@ -285,7 +286,7 @@
 
   // ---------------------------------------------------------------- menus
   const MENUS = [
-    ["Arquivo", [["new", "file-plus", "Nova imagem...", "Ctrl+N"], ["open", "folder-open", "Abrir...", "Ctrl+O"], ["paste-new", "clipboard-paste", "Nova a partir da área de transferência"], "-",
+    ["Arquivo", [["new", "file-plus", "Nova imagem...", "Ctrl+N"], ["open", "folder-open", "Abrir...", "Ctrl+O"], ["paste-new", "clipboard-paste", "Nova a partir da área de transferência"], ["library", "library", "Abrir da Mídia do Hub..."], "-",
       ["save", "save", "Salvar projeto", "Ctrl+S"], ["save-as", "save", "Salvar projeto como...", "Ctrl+Shift+S"], ["export", "download", "Exportar imagem...", "Ctrl+Shift+E"], "-", ["close", "x", "Fechar imagem", "Ctrl+W"]]],
     ["Editar", [["undo", "undo-2", "Desfazer", "Ctrl+Z"], ["redo", "redo-2", "Refazer", "Ctrl+Shift+Z"], "-", ["cut", "scissors", "Recortar", "Ctrl+X"], ["copy", "copy", "Copiar", "Ctrl+C"],
       ["copy-merged", "copy", "Copiar mesclado", "Ctrl+Shift+C"], ["paste", "clipboard-paste", "Colar", "Ctrl+V"], ["clear", "eraser", "Apagar seleção", "Delete"], "-",
@@ -308,10 +309,11 @@
   ];
   const pop = $("#menuPop");
   let openMenu = null;
+  let hubLib = false; // Hub 1.7.0+: Mídia compartilhada entre os módulos
   function showMenu(i, btn) {
     const [, items] = MENUS[i];
     pop.innerHTML = items.map((it) => it === "-" ? `<div class="sep"></div>`
-      : `<button class="mi" data-cmd="${it[0]}" ${!doc() && !["new", "open", "paste-new", "shortcuts"].includes(it[0]) ? "disabled" : ""}><i class="i i-${it[1]}"></i>${esc(it[2])}${it[3] ? `<span class="k">${it[3]}</span>` : ""}</button>`).join("");
+      : `<button class="mi" data-cmd="${it[0]}" ${!doc() && !["new", "open", "paste-new", "library", "shortcuts"].includes(it[0]) ? "disabled" : ""}><i class="i i-${it[1]}"></i>${esc(it[2])}${it[3] ? `<span class="k">${it[3]}</span>` : ""}</button>`).join("");
     const r = btn.getBoundingClientRect();
     pop.style.left = r.left + "px"; pop.style.top = r.bottom + 4 + "px";
     pop.hidden = false;
@@ -538,6 +540,7 @@
         <button class="big-act" data-cmd="new"><i class="i i-file-plus"></i><b>Nova imagem</b><span>Tela em branco ou transparente</span></button>
         <button class="big-act" data-cmd="open"><i class="i i-folder-open"></i><b>Abrir imagem</b><span>PNG, JPG, WebP, GIF, BMP ou projeto</span></button>
         <button class="big-act" data-cmd="paste-new"><i class="i i-clipboard-paste"></i><b>Colar</b><span>Imagem copiada ou print (Win+Shift+S)</span></button>
+        ${hubLib ? `<button class="big-act" data-cmd="library"><i class="i i-library"></i><b>Da Mídia</b><span>Prints do Piphin Captura e imagens dos outros módulos</span></button>` : ""}
       </div>
       <div class="home-cols">
         <div class="home-card"><h3>Tamanhos prontos</h3>${PRESETS.slice(0, 7).map(([n, w, h]) => `<button class="preset" data-new="${w}x${h}"><span class="shape"><i style="width:${(w >= h ? 20 : (20 * w) / h).toFixed(1)}px;height:${(h >= w ? 20 : (20 * h) / w).toFixed(1)}px"></i></span>${esc(n)}<span class="dim">${w} × ${h}</span></button>`).join("")}</div>
@@ -626,6 +629,10 @@
     if (prefs.exportPrefs) S.exportPrefs = prefs.exportPrefs;
     if (prefs.tool && PF.tools[prefs.tool]) S.tool = prefs.tool;
     renderToolbar(); renderOptions(); renderColor(); colorsChanged();
+    const feats = await PF.call("hub-features").catch(() => ({}));
+    hubLib = !!(feats && feats.library);
+    // chegou de outro módulo ("Abrir no Piphin Foto")
+    piphin.on("open-file", async (r) => { try { await io.openLoaded(r); PF.toast(`"${r.name}" chegou do ${r.from || "Hub"}`, "ok"); } catch (e) { PF.toast(e.message, "err"); } });
     PF.emit("doc", null);
     piphin.invoke("ui-ready");
   })();

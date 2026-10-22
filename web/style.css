@@ -185,3 +185,4 @@ body { display: flex; flex-direction: column; }
 .size-note { font-size: 12px; color: var(--p-text-3); }
 .toast.warn::before { background: var(--p-warn); }
 .toast.info::before { background: var(--p-info); }
+.home-actions:has(> :nth-child(4)) { grid-template-columns: repeat(4, 1fr); }

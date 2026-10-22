@@ -1,5 +1,6 @@
 // Piphin Foto como módulo do Piphin Hub. A edição toda acontece na tela (web/); aqui ficam os arquivos
 // (abrir, salvar, recentes), a área de transferência e a ponte das ferramentas da IA (Piphin LLM).
+// Com o Hub 1.7.0+: abre prints e imagens da Mídia do Hub, e as imagens exportadas aparecem lá.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -57,6 +58,7 @@ exports.activate = (ctx) => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, text != null ? text : Buffer.from(bytes));
     remember(file);
+    if (format !== "pfoto") toLibrary(file);
     return { path: file, name: path.basename(file) };
   });
   ctx.handle("show-item", (file) => ctx.host.showItem(file));
@@ -67,6 +69,30 @@ exports.activate = (ctx) => {
     return prefs;
   });
   ctx.handle("export-dir", () => exportDir());
+
+  // ---------------------------------------------------------------- Mídia do Hub (no Hub antigo, ctx.host.library não existe)
+  const lib = ctx.host.library || null;
+  // imagem exportada (pela tela ou pela IA) aparece na Mídia
+  const toLibrary = (file) => {
+    if (lib) lib.add({ path: file, kind: "image", title: path.basename(file).replace(/\.[^.]+$/, ""), sub: "Imagem editada" }).catch((e) => ctx.log("mídia", e));
+  };
+  ctx.handle("hub-features", () => ({ library: !!lib }));
+  ctx.handle("library-pick", async () => {
+    if (!lib) throw new Error("Atualize o Piphin Hub para usar a Mídia");
+    const [it] = await lib.pick({ kinds: ["image"], multi: false, title: "Abrir da Mídia" });
+    return it ? load(it.path) : null;
+  });
+  // "Abrir no Piphin Foto" de outro módulo (ex.: um print do Piphin Captura)
+  ctx.host.on("open-file", async (f) => {
+    try {
+      const r = load(f.path);
+      if (!uiReady) {
+        await ctx.host.focus().catch(() => {});
+        await new Promise((resolve) => { readyWaiters.push(resolve); setTimeout(resolve, 20000); });
+      }
+      ctx.emit("open-file", { ...r, from: f.fromName });
+    } catch (e) { ctx.log("abrir arquivo", e); }
+  });
 
   // ---------------------------------------------------------------- ferramentas para a IA (module.json "tools")
   // A edição vive na tela: o pedido vai para ela (abre o módulo no Hub se preciso) e a resposta volta por "ai-reply".
@@ -114,6 +140,7 @@ exports.activate = (ctx) => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, Buffer.from(res.bytes));
     remember(file);
+    toLibrary(file);
     ctx.host.notify("Piphin Foto", "A IA salvou a imagem em " + file).catch(() => {});
     return { saved: file, width: res.width, height: res.height };
   });
