@@ -337,20 +337,23 @@ PF.tools = {};
     options: () => `<span class="opt-hint">Clique para escolher a cor principal · Alt + clique para a secundária</span>`,
   };
 
-  // ---------------------------------------------------------------- mover
+  // ---------------------------------------------------------------- mover (e mudar tamanho / girar pelas alças)
+  // Sem seleção, a camada ativa ganha uma caixa: cantos mudam o tamanho, laterais esticam, a bolinha de cima gira.
+  // Imagens coladas ou vindas do inventário guardam o original (ops.placeLayer), então aumentar de novo não perde qualidade.
   PF.tools.move = (() => {
     let start = null, layer = null, base = null, float = null, hole = null, sel = null, moved = { x: 0, y: 0 }, text0 = null;
+    let drag = null, cur = null, hover = null, guides = null;
+    const R = Math.PI / 180;
+    const HANDLES = { nw: [-1, -1], n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1], s: [0, 1], sw: [-1, 1], w: [-1, 0] };
+    const rot = (x, y, a) => ({ x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) });
+    const ops = () => PF.ops;
+
+    // ------------------------------------------------ mover pixels da seleção (como antes)
     function build(d) {
       const c = PF.canvas(d.w, d.h), g = PF.g(c);
       if (float) { g.drawImage(hole, 0, 0); g.drawImage(float, moved.x, moved.y); }
       else g.drawImage(base, moved.x, moved.y);
       return c;
-    }
-    function nudge(dx, dy) {
-      const d = doc(), l = d.active;
-      if (!l || l.locked) return;
-      if (l.text) { d.beginEdit("Mover", []); l.text.x += dx; l.text.y += dy; PF.renderText(l, d.w, d.h); d.changed(); return; }
-      start = { x: 0, y: 0 }; layer = l; base = l.canvas; prep(d); moved = { x: dx, y: dy }; finish(d);
     }
     function prep(d) {
       float = hole = sel = null;
@@ -362,43 +365,252 @@ PF.tools = {};
     }
     function finish(d) {
       if (!moved.x && !moved.y) { d.preview = null; start = null; d.changed(); return; }
-      const out = layer.text ? null : build(d);
+      const out = build(d);
       d.beginEdit("Mover", []);
-      if (layer.text) { layer.text.x = text0.x + moved.x; layer.text.y = text0.y + moved.y; PF.renderText(layer, d.w, d.h); }
-      else layer.canvas = out;
+      layer.canvas = out;
       if (sel) { const m = PF.canvas(d.w, d.h); PF.g(m).drawImage(sel, moved.x, moved.y); d.setSelection(m); }
       d.preview = null; start = null;
       d.changed(); PF.emit("layers", d);
     }
+
+    // ------------------------------------------------ caixa com alças
+    // a caixa aparece com a ferramenta Mover, sem seleção, na camada ativa visível
+    function boxFor(d) {
+      const l = d && d.active;
+      if (!l || !l.visible || d.selection) return null;
+      return drag && cur ? cur : ops().layerBox(l);
+    }
+    function points(b) {
+      const a = b.angle * R, cx = b.x + b.w / 2, cy = b.y + b.h / 2, pts = {};
+      for (const [k, [hx, hy]] of Object.entries(HANDLES)) {
+        if (b.text && (!hx || !hy)) continue; // texto: só os cantos (tamanho da fonte)
+        const r = rot((hx * b.w) / 2, (hy * b.h) / 2, a);
+        pts[k] = { x: cx + r.x, y: cy + r.y };
+      }
+      return pts;
+    }
+    // bolinha de girar: acima do meio do lado de cima, 26 px na tela (embaixo, se em cima ela sairia da área visível)
+    function knob(b) {
+      const a = b.angle * R, cx = b.x + b.w / 2, cy = b.y + b.h / 2, { W, H } = PF.view.size();
+      for (const side of [-1, 1]) {
+        const t = rot(0, (side * b.h) / 2, a), s = PF.view.toScreen(cx + t.x, cy + t.y), out = rot(0, side, a);
+        const k = { x: s.x + out.x * 26, y: s.y + out.y * 26, from: s };
+        if (side === 1 || (k.x > 8 && k.y > 8 && k.x < W - 8 && k.y < H - 8)) return k;
+      }
+    }
+    function hitTest(b, p) {
+      for (const [k, q] of Object.entries(points(b))) {
+        const s = PF.view.toScreen(q.x, q.y);
+        if (Math.abs(p.sx - s.x) < 9 && Math.abs(p.sy - s.y) < 9) return k;
+      }
+      if (!b.text) { const k = knob(b); if (Math.hypot(p.sx - k.x, p.sy - k.y) < 10) return "rot"; }
+      return "move";
+    }
+    const CURSORS = ["ew-resize", "nwse-resize", "ns-resize", "nesw-resize"];
+    function cursorFor(h, b) {
+      if (!h || h === "move") return "move";
+      if (h === "rot") return "grab";
+      const [hx, hy] = HANDLES[h], ang = Math.atan2(hy, hx) / R + b.angle;
+      return CURSORS[(((Math.round(ang / 45) % 4) + 4) % 4)];
+    }
+
+    // novo retângulo ao arrastar uma alça (no sistema girado da caixa)
+    function resized(b0, h, p) {
+      const [hx, hy] = HANDLES[h], a = b0.angle * R, cx = b0.x + b0.w / 2, cy = b0.y + b0.h / 2;
+      const P = rot(p.x - cx, p.y - cy, -a), k = p.alt ? 2 : 1;
+      const ax = p.alt ? 0 : (-hx * b0.w) / 2, ay = p.alt ? 0 : (-hy * b0.h) / 2;
+      let w = hx ? hx * (P.x - ax) * k : b0.w, h2 = hy ? hy * (P.y - ay) * k : b0.h;
+      if (b0.text || (hx && hy && S.move.keepRatio !== p.shift)) {
+        const s = Math.max((w * b0.w + h2 * b0.h) / (b0.w * b0.w + b0.h * b0.h), 2 / Math.min(b0.w, b0.h));
+        w = b0.w * s; h2 = b0.h * s;
+      }
+      w = Math.max(2, w); h2 = Math.max(2, h2);
+      const lx = p.alt || !hx ? 0 : ax + (hx * w) / 2, ly = p.alt || !hy ? 0 : ay + (hy * h2) / 2;
+      const c = rot(lx, ly, a);
+      return { ...b0, x: cx + c.x - w / 2, y: cy + c.y - h2 / 2, w, h: h2 };
+    }
+    // ímã nas bordas e no centro da imagem ao arrastar (sem girar)
+    function snap(d, r) {
+      guides = { x: [], y: [] };
+      if (r.angle) return r;
+      const t = 6 / d.view.zoom;
+      const near = (vals, targets) => { for (const v of vals) for (const g of targets) if (Math.abs(v - g) < t) return g - v; return null; };
+      const dx = near([r.x, r.x + r.w / 2, r.x + r.w], [0, d.w / 2, d.w]), dy = near([r.y, r.y + r.h / 2, r.y + r.h], [0, d.h / 2, d.h]);
+      const out = { ...r, x: r.x + (dx || 0), y: r.y + (dy || 0) };
+      if (dx != null) guides.x = [0, d.w / 2, d.w].filter((g) => [out.x, out.x + out.w / 2, out.x + out.w].some((v) => Math.abs(v - g) < 0.5));
+      if (dy != null) guides.y = [0, d.h / 2, d.h].filter((g) => [out.y, out.y + out.h / 2, out.y + out.h].some((v) => Math.abs(v - g) < 0.5));
+      return out;
+    }
+    const tidy = (r) => (r.angle ? r : { ...r, x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
+    const same = (a, b) => ["x", "y", "w", "h", "angle"].every((k) => Math.abs(a[k] - b[k]) < 0.01);
+
+    // texto: o tamanho da fonte acompanha a caixa
+    function textFor(t0, b0, r) {
+      const s = r.w / b0.w, t = { ...t0, size: Math.max(1, Math.round(t0.size * s * 10) / 10), y: r.y };
+      t.x = t0.align === "center" ? r.x + r.w / 2 : t0.align === "right" ? r.x + r.w : r.x;
+      return t;
+    }
+    function preview(d) {
+      const l = drag.layer;
+      if (l.text) { const t = { ...l, text: textFor(drag.t0, drag.b0, cur) }; PF.renderText(t, d.w, d.h); d.preview = { id: l.id, canvas: t.canvas }; }
+      else d.preview = { id: l.id, canvas: ops().placeLayer(l, drag.src, cur) };
+      d.changed();
+    }
+    // aplica um retângulo novo na camada (um passo no histórico)
+    function commit(l, b0, r, label, src) {
+      const d = doc();
+      r = tidy(r);
+      d.preview = null;
+      if (same(r, b0)) { d.changed(); return; }
+      if (l.text) {
+        const t = textFor(l.text, b0, r);
+        d.beginEdit(label, []); l.text = t; PF.renderText(l, d.w, d.h); d.changed(); PF.emit("layers", d);
+      } else {
+        src = src || ops().placeSource(l);
+        if (src) ops().placeLayer(l, src, r, label);
+      }
+      PF.emit("options");
+    }
+    function editable() {
+      const d = doc(), l = d && d.active;
+      if (!l) return null;
+      if (l.locked) { toast("A camada ativa está bloqueada", "warn"); return null; }
+      if (!l.visible) { toast("A camada ativa está oculta", "warn"); return null; }
+      return l;
+    }
+
     return {
-      name: "Mover", icon: "move", key: "V", cursor: "move",
+      name: "Mover", icon: "move", key: "V", cursor: () => cursorFor(hover, boxFor(doc()) || { angle: 0 }),
       down(p) {
-        const d = doc(); layer = d.active;
-        if (!layer || layer.locked) return toast("A camada ativa está bloqueada", "warn");
-        start = p; base = layer.canvas; moved = { x: 0, y: 0 }; text0 = layer.text ? { x: layer.text.x, y: layer.text.y } : null;
-        prep(d);
+        const d = doc(), l = editable();
+        if (!l) return;
+        const b = boxFor(d);
+        if (!b) { // com seleção: move os pixels selecionados
+          if (!d.selection || l.text) return;
+          layer = l; start = p; base = l.canvas; moved = { x: 0, y: 0 }; prep(d);
+          return;
+        }
+        const h = hitTest(b, p);
+        drag = { h, p0: p, b0: b, layer: l, t0: l.text ? { ...l.text } : null, src: l.text ? null : ops().placeSource(l) };
+        if (!l.text && !drag.src) { drag = null; return; }
+        cur = b;
       },
       move(p) {
-        if (!start) return;
         const d = doc();
-        moved = { x: Math.round(p.x - start.x), y: Math.round(p.y - start.y) };
-        if (p.shift) { if (Math.abs(moved.x) > Math.abs(moved.y)) moved.y = 0; else moved.x = 0; }
-        later(() => {
-          if (!start) return;
-          if (layer.text) { const t = { ...layer, text: { ...layer.text, x: text0.x + moved.x, y: text0.y + moved.y } }; PF.renderText(t, d.w, d.h); d.preview = { id: layer.id, canvas: t.canvas }; }
-          else d.preview = { id: layer.id, canvas: build(d) };
-          d.changed();
-        });
+        if (start) {
+          moved = { x: Math.round(p.x - start.x), y: Math.round(p.y - start.y) };
+          if (p.shift) { if (Math.abs(moved.x) > Math.abs(moved.y)) moved.y = 0; else moved.x = 0; }
+          later(() => { if (start) { d.preview = { id: layer.id, canvas: build(d) }; d.changed(); } });
+          return;
+        }
+        if (!drag) return;
+        const { h, p0, b0 } = drag;
+        if (h === "move") {
+          let dx = p.x - p0.x, dy = p.y - p0.y;
+          if (p.shift) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+          cur = snap(d, { ...b0, x: Math.round(b0.x + dx), y: Math.round(b0.y + dy) });
+        } else if (h === "rot") {
+          const cx = b0.x + b0.w / 2, cy = b0.y + b0.h / 2;
+          let ang = b0.angle + (Math.atan2(p.y - cy, p.x - cx) - Math.atan2(p0.y - cy, p0.x - cx)) / R;
+          if (p.shift) ang = Math.round(ang / 15) * 15;
+          cur = { ...b0, angle: ((ang % 360) + 540) % 360 - 180 };
+        } else { guides = null; cur = resized(b0, h, p); }
+        PF.status && PF.status(`${Math.round(cur.w)} × ${Math.round(cur.h)} px${cur.angle ? ` · ${Math.round(cur.angle)}°` : ""}`);
+        later(() => { if (drag) preview(d); });
       },
-      up() { if (start) finish(doc()); },
+      up() {
+        if (start) return finish(doc());
+        if (!drag) return;
+        const { layer: l, b0, h, src } = drag;
+        drag = null; guides = null;
+        commit(l, b0, cur, h === "move" ? "Mover" : h === "rot" ? "Girar camada" : "Redimensionar camada", src);
+        cur = null;
+      },
+      hover(p) {
+        const b = boxFor(doc()), h = b ? hitTest(b, p) : null;
+        if (h !== hover) { hover = h; PF.view.updateCursor(); }
+      },
+      deactivate() { drag = cur = guides = null; },
       onKey(e) {
         const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
         if (!k) return false;
-        const s = e.shiftKey ? 10 : 1;
-        nudge(k[0] * s, k[1] * s);
+        const d = doc(), l = editable(), s = e.shiftKey ? 10 : 1;
+        if (!l) return true;
+        if (d.selection && !l.text) { start = { x: 0, y: 0 }; layer = l; base = l.canvas; prep(d); moved = { x: k[0] * s, y: k[1] * s }; finish(d); return true; }
+        const b = ops().layerBox(l);
+        if (b) commit(l, b, { ...b, x: b.x + k[0] * s, y: b.y + k[1] * s }, "Mover");
         return true;
       },
-      options: () => `<span class="opt-hint">Arraste a camada (ou a seleção). Setas movem 1 px, Shift + setas 10 px.</span>`,
+      overlay(g, v) {
+        const d = doc(), b = boxFor(d);
+        if (!b || start) return;
+        const pts = points(b), box = points({ ...b, text: false }), corner = (k) => v.toScreen(box[k].x, box[k].y);
+        // guias do ímã
+        if (guides) {
+          g.strokeStyle = "#f472b6"; g.lineWidth = 1; g.beginPath();
+          for (const x of guides.x) { const s = v.toScreen(x, 0); g.moveTo(Math.round(s.x) + 0.5, s.y); g.lineTo(Math.round(s.x) + 0.5, s.y + d.h * v.zoom); }
+          for (const y of guides.y) { const s = v.toScreen(0, y); g.moveTo(s.x, Math.round(s.y) + 0.5); g.lineTo(s.x + d.w * v.zoom, Math.round(s.y) + 0.5); }
+          g.stroke();
+        }
+        g.beginPath();
+        ["nw", "ne", "se", "sw"].forEach((k, i) => { const s = corner(k); i ? g.lineTo(s.x, s.y) : g.moveTo(s.x, s.y); });
+        g.closePath();
+        g.strokeStyle = "rgba(0,0,0,.6)"; g.lineWidth = 3; g.stroke();
+        g.strokeStyle = "#fb923c"; g.lineWidth = 1.5; g.stroke();
+        if (!b.text) {
+          const k = knob(b);
+          g.beginPath(); g.moveTo(k.from.x, k.from.y); g.lineTo(k.x, k.y); g.strokeStyle = "#fb923c"; g.lineWidth = 1.5; g.stroke();
+          g.beginPath(); g.arc(k.x, k.y, 6, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill(); g.strokeStyle = "#fb923c"; g.stroke();
+        }
+        for (const q of Object.values(pts)) {
+          const s = v.toScreen(q.x, q.y);
+          g.fillStyle = "#fff"; g.fillRect(s.x - 5, s.y - 5, 10, 10);
+          g.strokeStyle = "#fb923c"; g.lineWidth = 1.5; g.strokeRect(s.x - 5, s.y - 5, 10, 10);
+        }
+      },
+      // campos da barra de opções e botões (Ajustar, Preencher, Tamanho original, Centralizar)
+      setField(key, val) {
+        const l = editable(), b = l && ops().layerBox(l);
+        if (!b || !isFinite(val)) return;
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        let w = b.w, h = b.h, angle = b.angle;
+        if (key === "angle") angle = val;
+        else if (key === "pct") { w = (b.w * val) / 100; h = (b.h * val) / 100; }
+        else {
+          if (key === "w") { w = Math.max(1, val); if (S.move.keepRatio || b.text) h = (b.h * w) / b.w; }
+          if (key === "h") { h = Math.max(1, val); if (S.move.keepRatio || b.text) w = (b.w * h) / b.h; }
+        }
+        commit(l, b, { ...b, x: cx - w / 2, y: cy - h / 2, w, h, angle }, key === "angle" ? "Girar camada" : "Redimensionar camada");
+      },
+      place(how) {
+        const d = doc(), l = editable(), b = l && ops().layerBox(l);
+        if (!b) return;
+        let { w, h } = b, angle = b.angle;
+        if (how === "fit" || how === "fill") { const k = (how === "fit" ? Math.min : Math.max)(d.w / w, d.h / h); w *= k; h *= k; angle = 0; }
+        if (how === "original") { const p = ops().placedOf(l); if (!p) return; w = p.img.width; h = p.img.height; angle = 0; }
+        // "Original" mantém o centro onde está; os outros centralizam na imagem
+        const x = how === "original" ? b.x + (b.w - w) / 2 : (d.w - w) / 2, y = how === "original" ? b.y + (b.h - h) / 2 : (d.h - h) / 2;
+        commit(l, b, { ...b, x, y, w, h, angle }, how === "center" ? "Centralizar camada" : "Redimensionar camada");
+      },
+      options() {
+        const d = doc(), l = d && d.active, b = d && !d.selection && l ? ops().layerBox(l) : null;
+        if (!b) return `<span class="opt-hint">${d && d.selection ? "Arraste para mover a seleção. Setas movem 1 px, Shift + setas 10 px." : "Arraste a camada. Setas movem 1 px, Shift + setas 10 px."}</span>`;
+        const n = (v) => Math.round(v);
+        if (b.text) return `
+          <span class="opt-hint">Arraste o texto para mover. Arraste um canto para aumentar ou diminuir.</span>`;
+        return `
+          <label class="opt">Largura <input type="number" min="1" max="30000" class="num-in" data-tf="w" value="${n(b.w)}"></label>
+          <button class="btn sm ghost ${S.move.keepRatio ? "on" : ""}" data-toggle="move.keepRatio" title="Manter a proporção"><i class="i i-${S.move.keepRatio ? "link" : "unlink"}"></i></button>
+          <label class="opt">Altura <input type="number" min="1" max="30000" class="num-in" data-tf="h" value="${n(b.h)}"></label>
+          <label class="opt">Ângulo <input type="number" min="-180" max="180" class="num-in" data-tf="angle" value="${n(b.angle)}">°</label>
+          <div class="seg mini">
+            <button data-cmd="tf-fit" title="Caber inteira na imagem"><i class="i i-shrink"></i>Caber</button>
+            <button data-cmd="tf-fill" title="Cobrir a imagem toda"><i class="i i-expand"></i>Cobrir</button>
+            ${ops().placedOf(l) ? `<button data-cmd="tf-original" title="Voltar ao tamanho original"><i class="i i-rotate-ccw"></i>Original</button>` : ""}
+            <button data-cmd="tf-center" title="Centralizar"><i class="i i-crosshair"></i>Centralizar</button>
+          </div>
+          <span class="opt-hint">Arraste os cantos para mudar o tamanho (Shift: livre, Alt: pelo centro) · bolinha de cima gira</span>`;
+      },
     };
   })();
 

@@ -41,6 +41,16 @@
       { close: () => resolve(buttons.length - 1) });
     box.querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => { onClose = null; closeModal(); resolve(Number(b.dataset.i)); }));
   });
+  // pede um texto (renomear, nome da pasta); resolve null se cancelar
+  PF.prompt = (title, label, value = "") => new Promise((resolve) => {
+    openModal(`<h3>${esc(title)}</h3><div class="form"><label>${esc(label)}<input type="text" id="dlgTxt" maxlength="80" value="${esc(value)}"></label></div>
+      <div class="modal-actions"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>OK</button></div>`, { close: () => resolve(null) });
+    const ok = () => { const v = $("#dlgTxt").value.trim(); onClose = null; closeModal(); resolve(v || null); };
+    box.querySelector("[data-x]").onclick = () => closeModal();
+    box.querySelector("[data-ok]").onclick = ok;
+    $("#dlgTxt").onkeydown = (e) => { if (e.key === "Enter") { e.stopPropagation(); ok(); } };
+    setTimeout(() => $("#dlgTxt") && $("#dlgTxt").select(), 0);
+  });
   function numberDialog(title, label, value, min, max, unit, run) {
     openModal(`<h3>${esc(title)}</h3><div class="form"><label>${esc(label)}<input type="number" id="dlgNum" value="${value}" min="${min}" max="${max}"></label></div>
       <div class="modal-actions"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>OK</button></div>`);
@@ -239,7 +249,7 @@
     const rows = [["V", "Mover"], ["M", "Seleção retangular / elíptica"], ["L", "Laço"], ["W", "Varinha mágica"], ["C", "Recortar"], ["B", "Pincel"], ["E", "Borracha"], ["S", "Carimbo"],
       ["G", "Balde / Degradê"], ["T", "Texto"], ["U", "Formas"], ["I", "Conta-gotas"], ["H ou Espaço", "Mão"], ["Z", "Zoom"], ["[ e ]", "Tamanho do pincel"], ["X", "Trocar cores"], ["D", "Preto e branco"],
       ["Ctrl+Z / Ctrl+Shift+Z", "Desfazer / refazer"], ["Ctrl+A / Ctrl+D", "Selecionar tudo / desmarcar"], ["Ctrl+Shift+I", "Inverter seleção"], ["Delete", "Apagar a seleção"],
-      ["Ctrl+C / Ctrl+X / Ctrl+V", "Copiar / recortar / colar"], ["Ctrl+J", "Duplicar camada"], ["Ctrl+E", "Mesclar para baixo"], ["Ctrl+T", "Transformar camada"],
+      ["Ctrl+C / Ctrl+X / Ctrl+V", "Copiar / recortar / colar"], ["Ctrl+J", "Duplicar camada"], ["Ctrl+E", "Mesclar para baixo"], ["Ctrl+T", "Mudar tamanho / girar camada"],
       ["Ctrl+0 / Ctrl+1", "Ajustar à tela / 100%"], ["Ctrl+= / Ctrl+-", "Aproximar / afastar"], ["Ctrl+S", "Salvar projeto"], ["Ctrl+Shift+E", "Exportar"], ["Ctrl+N / Ctrl+O", "Nova / abrir"]];
     openModal(`<h3>Atalhos do teclado</h3><div class="kv" style="display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin-top:12px;font-size:13px">
       ${rows.map(([k, t]) => `<b class="mono" style="color:var(--fx-accent);font-weight:500">${k}</b><span>${t}</span>`).join("")}</div>
@@ -257,7 +267,11 @@
     paste: () => io.paste(), "paste-new": () => io.paste({ newDocument: true }),
     library: async () => { try { const r = await PF.call("library-pick"); if (r) await io.openLoaded(r); } catch (e) { PF.toast(e.message, "err"); } },
     clear: needDoc(() => ops.clearSelection()), "fill-fg": needDoc(() => ops.fillSelection(S.fg)), "fill-bg": needDoc(() => ops.fillSelection(S.bg)),
-    transform: needDoc(transformDialog),
+    // Ctrl+T: alças da ferramenta Mover; com seleção, o diálogo de valores
+    transform: needDoc(() => { if (doc().selection) return transformDialog(); selectTool("move"); PF.toast("Arraste os cantos da caixa para mudar o tamanho e a bolinha de cima para girar", "info"); }),
+    "transform-values": needDoc(transformDialog),
+    "tf-fit": needDoc(() => PF.tools.move.place("fit")), "tf-fill": needDoc(() => PF.tools.move.place("fill")),
+    "tf-original": needDoc(() => PF.tools.move.place("original")), "tf-center": needDoc(() => PF.tools.move.place("center")),
     "image-size": needDoc(imageSizeDialog), "canvas-size": needDoc(canvasSizeDialog),
     "rot-cw": needDoc(() => ops.rotate(90)), "rot-ccw": needDoc(() => ops.rotate(270)), "rot-180": needDoc(() => ops.rotate(180)),
     "flip-h": needDoc(() => ops.flip("h")), "flip-v": needDoc(() => ops.flip("v")),
@@ -283,15 +297,17 @@
   for (const [k, def] of Object.entries(PF.QUICK)) CMD["adj-" + k] = needDoc(() => ops.applyToLayer(def.name, (c) => def.run(c, {})));
   for (const [k, def] of Object.entries(PF.FILTERS)) CMD["flt-" + k] = needDoc(() => fxDialog(def));
   PF.cmd = (name) => { if (CMD[name]) CMD[name](); };
+  PF.addCmd = (name, fn, { doc: withDoc = false } = {}) => { CMD[name] = withDoc ? needDoc(fn) : guard(fn); };
 
   // ---------------------------------------------------------------- menus
   const MENUS = [
     ["Arquivo", [["new", "file-plus", "Nova imagem...", "Ctrl+N"], ["open", "folder-open", "Abrir...", "Ctrl+O"], ["paste-new", "clipboard-paste", "Nova a partir da área de transferência"], ["library", "library", "Abrir da Mídia do Hub..."], "-",
+      ["inv-save-image", "archive", "Guardar imagem no inventário"],
       ["save", "save", "Salvar projeto", "Ctrl+S"], ["save-as", "save", "Salvar projeto como...", "Ctrl+Shift+S"], ["export", "download", "Exportar imagem...", "Ctrl+Shift+E"], "-", ["close", "x", "Fechar imagem", "Ctrl+W"]]],
     ["Editar", [["undo", "undo-2", "Desfazer", "Ctrl+Z"], ["redo", "redo-2", "Refazer", "Ctrl+Shift+Z"], "-", ["cut", "scissors", "Recortar", "Ctrl+X"], ["copy", "copy", "Copiar", "Ctrl+C"],
       ["copy-merged", "copy", "Copiar mesclado", "Ctrl+Shift+C"], ["paste", "clipboard-paste", "Colar", "Ctrl+V"], ["clear", "eraser", "Apagar seleção", "Delete"], "-",
       ["fill-fg", "paint-bucket", "Preencher com a cor principal", "Alt+Backspace"], ["fill-bg", "paint-bucket", "Preencher com a cor secundária", "Ctrl+Backspace"], "-",
-      ["transform", "scaling", "Transformar camada...", "Ctrl+T"], "-", ["shortcuts", "keyboard", "Atalhos do teclado"]]],
+      ["transform", "scaling", "Mudar tamanho / girar camada", "Ctrl+T"], ["transform-values", "sliders-horizontal", "Transformar com valores..."], "-", ["shortcuts", "keyboard", "Atalhos do teclado"]]],
     ["Imagem", [["image-size", "scaling", "Tamanho da imagem...", "Ctrl+Alt+I"], ["canvas-size", "expand", "Tamanho da tela...", "Ctrl+Alt+C"], "-",
       ["rot-cw", "rotate-cw", "Girar 90° no sentido horário"], ["rot-ccw", "rotate-ccw", "Girar 90° no sentido anti-horário"], ["rot-180", "rotate-cw", "Girar 180°"],
       ["flip-h", "flip-horizontal-2", "Espelhar na horizontal"], ["flip-v", "flip-vertical-2", "Espelhar na vertical"], "-",
@@ -299,7 +315,7 @@
     ["Camada", [["layer-new", "plus", "Nova camada", "Ctrl+Shift+N"], ["layer-dup", "copy", "Duplicar camada", "Ctrl+J"], ["layer-del", "trash-2", "Apagar camada"], "-",
       ["layer-merge", "merge", "Mesclar para baixo", "Ctrl+E"], ["layer-up", "arrow-up", "Subir camada", "Ctrl+]"], ["layer-down", "arrow-down", "Descer camada", "Ctrl+["], "-",
       ["layer-flip-h", "flip-horizontal-2", "Espelhar camada na horizontal"], ["layer-flip-v", "flip-vertical-2", "Espelhar camada na vertical"], ["layer-rot-180", "rotate-cw", "Girar camada 180°"],
-      ["layer-raster", "type", "Converter texto em pixels"], ["layer-props", "pencil", "Renomear camada..."]]],
+      ["layer-raster", "type", "Converter texto em pixels"], ["inv-save-layer", "archive", "Guardar camada no inventário"], ["layer-props", "pencil", "Renomear camada..."]]],
     ["Seleção", [["select-all", "square-dashed", "Selecionar tudo", "Ctrl+A"], ["deselect", "x", "Desmarcar", "Ctrl+D"], ["select-invert", "repeat-2", "Inverter seleção", "Ctrl+Shift+I"], "-",
       ["feather", "droplet", "Suavizar..."], ["grow", "expand", "Expandir..."], ["shrink", "shrink", "Contrair..."]]],
     ["Ajustes", [...Object.entries(PF.ADJUST).map(([k, d]) => ["adj-" + k, d.icon, d.name + "..."]), "-", ...Object.entries(PF.QUICK).map(([k, d]) => ["adj-" + k, d.icon, d.name])]],
@@ -377,14 +393,17 @@
     $$(`[data-show="${path}"]`, $("#optbar")).forEach((o) => (o.textContent = v + (/opacity|hardness/.test(path) ? "%" : "")));
     optChanged(path);
   });
-  $("#optbar").addEventListener("change", (e) => { if (e.target.tagName === "SELECT") { setOpt(e.target.dataset.opt, e.target.value); optChanged(e.target.dataset.opt); } });
+  $("#optbar").addEventListener("change", (e) => {
+    const tf = e.target.dataset.tf;
+    if (tf) { PF.tools.move.setField(tf, Number(e.target.value)); return; }
+    if (e.target.tagName === "SELECT") { setOpt(e.target.dataset.opt, e.target.value); optChanged(e.target.dataset.opt); } });
   $("#optbar").addEventListener("click", (e) => {
     const s = e.target.closest("[data-set]"), t = e.target.closest("[data-toggle]");
     if (s) { setOpt(s.dataset.set, s.dataset.val); optChanged(s.dataset.set); renderOptions(); }
     if (t) { setOpt(t.dataset.toggle, !getOpt(t.dataset.toggle)); optChanged(t.dataset.toggle); renderOptions(); }
   });
   let prefsTimer = 0;
-  const PREF_KEYS = ["brush", "eraser", "clone", "select", "wand", "fill", "gradient", "shape", "text", "crop", "fg", "bg", "recentColors"];
+  const PREF_KEYS = ["brush", "eraser", "clone", "select", "wand", "fill", "gradient", "shape", "text", "crop", "move", "fg", "bg", "recentColors"];
   function savePrefsSoon() {
     clearTimeout(prefsTimer);
     prefsTimer = setTimeout(() => PF.call("prefs", Object.fromEntries(PREF_KEYS.map((k) => [k, S[k]]))).catch(() => {}), 800);
@@ -556,11 +575,11 @@
   });
 
   PF.on("doc", (d) => { renderTabs(); renderLayers(); renderHistory(); renderStatus(); renderOptions(); if (!d) renderHome(); });
-  PF.on("layers", () => { renderLayers(); renderTabs(); });
+  PF.on("layers", () => { renderLayers(); renderTabs(); if (S.tool === "move") renderOptions(); });
   PF.on("active", () => renderOptions());
-  PF.on("history", () => { renderHistory(); renderTabs(); refreshThumbsSoon(); });
+  PF.on("history", () => { renderHistory(); renderTabs(); refreshThumbsSoon(); if (S.tool === "move") renderOptions(); });
   PF.on("zoom", renderStatus);
-  PF.on("selection", (d) => { if (d === doc()) PF.status(d.selection ? (() => { const b = d.selectionBounds(); return `Seleção: ${b.w} × ${b.h} px`; })() : ""); });
+  PF.on("selection", (d) => { if (d === doc() && S.tool === "move") renderOptions(); if (d === doc()) PF.status(d.selection ? (() => { const b = d.selectionBounds(); return `Seleção: ${b.w} × ${b.h} px`; })() : ""); });
 
   // ---------------------------------------------------------------- teclado
   const TOOL_KEYS = { v: ["move"], m: ["rect", "ellipse"], l: ["lasso"], w: ["wand"], c: ["crop"], b: ["brush"], e: ["eraser"], s: ["clone"], g: ["fill", "gradient"],

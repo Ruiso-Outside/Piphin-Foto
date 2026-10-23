@@ -22,7 +22,7 @@ exports.activate = (ctx) => {
   }
 
   // lê uma imagem ou projeto para a tela: { name, path, kind: "image" | "project", mime, data (base64) | project }
-  function load(file) {
+  function load(file, keep = true) {
     const ext = path.extname(file).slice(1).toLowerCase();
     const st = fs.statSync(file);
     if (st.size > MAX_BYTES) throw new Error("Arquivo grande demais (mais de 300 MB)");
@@ -33,7 +33,7 @@ exports.activate = (ctx) => {
       return { kind: "project", name: path.basename(file), path: file, project };
     }
     if (!IMAGE_EXT.includes(ext)) throw new Error("Formato não suportado: ." + ext);
-    remember(file);
+    if (keep) remember(file);
     return { kind: "image", name: path.basename(file), path: file, mime: MIME[ext], data: fs.readFileSync(file).toString("base64") };
   }
 
@@ -69,6 +69,96 @@ exports.activate = (ctx) => {
     return prefs;
   });
   ctx.handle("export-dir", () => exportDir());
+
+  // ---------------------------------------------------------------- inventário (imagens já usadas, com pastas)
+  // dataDir/inventory: index.json + <id>.png (a imagem) + <id>.webp (miniatura). As que entram sozinhas (abrir, colar,
+  // exportar) ficam até INV_AUTO_MAX; as que estão numa pasta só saem quando a pessoa remove.
+  const INV_DIR = path.join(ctx.dataDir, "inventory");
+  const INV_FILE = path.join(INV_DIR, "index.json");
+  const INV_AUTO_MAX = 200;
+  const crypto = require("crypto");
+  let inv = readJson(INV_FILE, null);
+  if (!inv || !Array.isArray(inv.items)) inv = { folders: [], items: [] };
+  const newId = () => Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+  const invPath = (id, ext) => path.join(INV_DIR, id + "." + ext);
+  function invSave() {
+    fs.mkdirSync(INV_DIR, { recursive: true });
+    fs.writeFileSync(INV_FILE + ".tmp", JSON.stringify(inv, null, 1));
+    fs.renameSync(INV_FILE + ".tmp", INV_FILE);
+  }
+  function invDrop(it) {
+    inv.items = inv.items.filter((x) => x !== it);
+    for (const ext of ["png", "webp"]) fs.rmSync(invPath(it.id, ext), { force: true });
+  }
+  const thumbOf = (it) => { try { return "data:image/webp;base64," + fs.readFileSync(invPath(it.id, "webp")).toString("base64"); } catch { return null; } };
+  const pub = (it) => ({ id: it.id, name: it.name, w: it.w, h: it.h, folder: it.folder, addedAt: it.addedAt, usedAt: it.usedAt, thumb: thumbOf(it) });
+  const findItem = (id) => { const it = inv.items.find((x) => x.id === id); if (!it) throw new Error("Imagem não encontrada no inventário"); return it; };
+  const cleanName = (n, d) => String(n || "").replace(/[\r\n\t]/g, " ").trim().slice(0, 80) || d;
+
+  ctx.handle("inv-list", () => ({ folders: inv.folders, items: [...inv.items].sort((a, b) => b.usedAt - a.usedAt).map(pub) }));
+  // { bytes (png), thumb (webp), name, w, h, folder?, auto? } -> item. A mesma imagem não entra duas vezes: só volta para o começo.
+  ctx.handle("inv-add", ({ bytes, thumb, name, w, h, folder = null, auto = false }) => {
+    const buf = Buffer.from(bytes);
+    if (!buf.length || buf.length > MAX_BYTES) throw new Error("Imagem grande demais para o inventário");
+    const hash = crypto.createHash("sha1").update(buf).digest("hex");
+    const now = Date.now();
+    if (folder && !inv.folders.some((f) => f.id === folder)) folder = null;
+    let it = inv.items.find((x) => x.hash === hash);
+    if (it) {
+      it.usedAt = now;
+      if (folder) it.folder = folder;
+      if (!auto && name) it.name = cleanName(name, it.name);
+    } else {
+      it = { id: newId(), name: cleanName(name, "Imagem"), w: Number(w) || 0, h: Number(h) || 0, folder, hash, addedAt: now, usedAt: now };
+      fs.mkdirSync(INV_DIR, { recursive: true });
+      fs.writeFileSync(invPath(it.id, "png"), buf);
+      if (thumb) fs.writeFileSync(invPath(it.id, "webp"), Buffer.from(thumb));
+      inv.items.push(it);
+      // as automáticas mais antigas saem quando passam do limite
+      const loose = inv.items.filter((x) => !x.folder).sort((a, b) => b.usedAt - a.usedAt);
+      for (const old of loose.slice(INV_AUTO_MAX)) invDrop(old);
+    }
+    invSave();
+    return pub(it);
+  });
+  ctx.handle("inv-get", (id) => {
+    const it = findItem(id);
+    it.usedAt = Date.now(); invSave();
+    return { id: it.id, name: it.name, mime: "image/png", data: fs.readFileSync(invPath(it.id, "png")).toString("base64") };
+  });
+  ctx.handle("inv-touch", (id) => { findItem(id).usedAt = Date.now(); invSave(); return true; });
+  ctx.handle("inv-update", ({ id, name, folder }) => {
+    const it = findItem(id);
+    if (name !== undefined) it.name = cleanName(name, it.name);
+    if (folder !== undefined) it.folder = folder && inv.folders.some((f) => f.id === folder) ? folder : null;
+    invSave();
+    return pub(it);
+  });
+  ctx.handle("inv-remove", (id) => { invDrop(findItem(id)); invSave(); return true; });
+  ctx.handle("folder-add", (name) => {
+    const f = { id: newId(), name: cleanName(name, "Pasta") };
+    inv.folders.push(f); invSave();
+    return f;
+  });
+  ctx.handle("folder-rename", ({ id, name }) => {
+    const f = inv.folders.find((x) => x.id === id);
+    if (!f) throw new Error("Pasta não encontrada");
+    f.name = cleanName(name, f.name); invSave();
+    return f;
+  });
+  // apagar a pasta não apaga as imagens: elas voltam para "Recentes"
+  ctx.handle("folder-remove", (id) => {
+    inv.folders = inv.folders.filter((f) => f.id !== id);
+    for (const it of inv.items) if (it.folder === id) it.folder = null;
+    invSave();
+    return true;
+  });
+  // escolher arquivos do PC para guardar (vários de uma vez)
+  ctx.handle("inv-pick-files", async () => {
+    const files = await ctx.host.openDialog({ title: "Adicionar ao inventário", properties: ["openFile", "multiSelections"],
+      filters: [{ name: "Imagens", extensions: IMAGE_EXT }] });
+    return (files || []).slice(0, 50).map((f) => { try { return load(f, false); } catch { return null; } }).filter(Boolean);
+  });
 
   // ---------------------------------------------------------------- Mídia do Hub (no Hub antigo, ctx.host.library não existe)
   const lib = ctx.host.library || null;

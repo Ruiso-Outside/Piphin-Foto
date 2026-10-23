@@ -269,19 +269,67 @@ PF.ops = (() => {
     PF.g(out).drawImage(piece, -b.x, -b.y);
     return { canvas: out, x: b.x, y: b.y };
   }
-  // cola uma imagem como camada nova (centralizada na tela, ou na posição de origem)
-  function pasteCanvas(img, name = "Colado", at = null) {
-    const d = need();
-    d.beginEdit("Colar", []);
+  // ---------------------------------------------------------------- imagem posicionada (mudar tamanho e girar sem perder qualidade)
+  // layer.placed = { img, x, y, w, h, angle, canvas }: a camada é a imagem original desenhada nesse retângulo. Vale enquanto
+  // placed.canvas === layer.canvas; pintar, filtrar etc. trocam o canvas e a camada volta a ser pixels comuns.
+  const placedOf = (l) => (l && !l.text && l.placed && l.placed.canvas === l.canvas ? l.placed : null);
+  function renderPlaced(d, p) {
     const c = PF.canvas(d.w, d.h), g = PF.g(c);
-    const x = at ? at.x : Math.round((d.w - img.width) / 2), y = at ? at.y : Math.round((d.h - img.height) / 2);
-    g.drawImage(img, x, y);
-    d.addLayer(name, c);
+    g.imageSmoothingQuality = "high";
+    g.translate(p.x + p.w / 2, p.y + p.h / 2); g.rotate((p.angle * Math.PI) / 180);
+    g.drawImage(p.img, -p.w / 2, -p.h / 2, p.w, p.h);
+    return c;
+  }
+  // origem para transformar a camada: a imagem posicionada ou, numa camada de pixels, o que estiver visível nela
+  const bounds = new WeakMap();
+  const boundsOf = (c) => { let b = bounds.get(c); if (!b) { b = PF.maskBounds(c, 0); bounds.set(c, b); } return b; };
+  function placeSource(l) {
+    const p = placedOf(l);
+    if (p) return p;
+    const b = boundsOf(l.canvas);
+    if (b.w <= 0) return null;
+    const img = PF.canvas(b.w, b.h);
+    PF.g(img).drawImage(l.canvas, -b.x, -b.y);
+    return { img, x: b.x, y: b.y, w: b.w, h: b.h, angle: 0 };
+  }
+  // caixa da camada para as alças da ferramenta Mover: { x, y, w, h, angle, text? }; null se a camada está vazia
+  function layerBox(l) {
+    if (!l) return null;
+    if (l.text) { const b = PF.textBox(l.text); return { x: b.x, y: b.y, w: b.w, h: b.h, angle: 0, text: true }; }
+    const p = placedOf(l);
+    if (p) return { x: p.x, y: p.y, w: p.w, h: p.h, angle: p.angle };
+    const b = boundsOf(l.canvas);
+    return b.w > 0 ? { ...b, angle: 0 } : null;
+  }
+  // r = { x, y, w, h, angle }; sem label, só devolve o canvas (prévia)
+  function placeLayer(l, src, r, label) {
+    const d = need();
+    const p = { img: src.img, x: r.x, y: r.y, w: Math.max(1, r.w), h: Math.max(1, r.h), angle: ((r.angle % 360) + 540) % 360 - 180 };
+    const c = renderPlaced(d, p);
+    if (!label) return c;
+    d.beginEdit(label, []);
+    l.canvas = c; p.canvas = c; l.placed = p;
+    done(d);
+    return c;
+  }
+
+  // cola uma imagem como camada nova: centralizada, com o centro em at = { cx, cy } ou no canto at = { x, y } (mesmo lugar
+  // da cópia). Maior que a imagem aberta: diminui para caber (menos no mesmo lugar da cópia).
+  function pasteCanvas(img, name = "Colado", at = null) {
+    const d = need(), exact = at && at.x != null;
+    const k = exact ? 1 : Math.min(1, d.w / img.width, d.h / img.height);
+    const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+    const p = { img, w, h, angle: 0, x: exact ? at.x : Math.round((at ? at.cx : d.w / 2) - w / 2), y: exact ? at.y : Math.round((at ? at.cy : d.h / 2) - h / 2) };
+    d.beginEdit("Colar", []);
+    const l = d.addLayer(name, renderPlaced(d, p));
+    p.canvas = l.canvas; l.placed = p;
     if (d.selection) d.setSelection(null);
     done(d);
+    return { layer: l, fitted: k < 1 };
   }
 
   return { applyToLayer, rasterize, resizeImage, canvasSize, crop, cropToSelection, trim, rotate, flip, transformLayer,
     newLayer, duplicateLayer, deleteLayer, moveLayer, mergeDown, flatten, setLayer,
-    selectAll, deselect, invertSelection, featherSelection, growSelection, clearSelection, fillSelection, copyCanvas, pasteCanvas };
+    selectAll, deselect, invertSelection, featherSelection, growSelection, clearSelection, fillSelection, copyCanvas, pasteCanvas,
+    placedOf, placeSource, placeLayer, layerBox };
 })();

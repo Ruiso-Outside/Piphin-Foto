@@ -173,12 +173,13 @@ PF.Doc = Doc;
 // ------------------------------------------------------------------ máscaras
 PF.mask = (w, h, draw) => { const c = PF.canvas(w, h), g = PF.g(c); g.fillStyle = "#fff"; g.strokeStyle = "#fff"; draw(g); return c; };
 PF.maskEmpty = (m) => { const b = PF.maskBounds(m); return b.w <= 0 || b.h <= 0; };
-PF.maskBounds = (m) => {
+// min: alfa mínimo que conta (127 = seleção; 0 = qualquer pixel visível)
+PF.maskBounds = (m, min = 127) => {
   const d = PF.pixels(m).data, w = m.width, h = m.height;
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let y = 0; y < h; y++) {
     const row = y * w * 4;
-    for (let x = 0; x < w; x++) if (d[row + x * 4 + 3] > 127) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; }
+    for (let x = 0; x < w; x++) if (d[row + x * 4 + 3] > min) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; }
   }
   return x1 < 0 ? { x: 0, y: 0, w: 0, h: 0 } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 };
@@ -248,4 +249,5 @@ PF.state = {
   shape: { kind: "rect", fill: true, stroke: false, strokeWidth: 4, radius: 0 },
   text: { font: "Segoe UI", size: 64, bold: false, italic: false, align: "left", outline: false, shadow: false },
   crop: { ratio: "free" },
+  move: { keepRatio: true },
 };

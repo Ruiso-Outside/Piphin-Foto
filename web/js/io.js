@@ -43,7 +43,9 @@ PF.io = (() => {
     doc.layers[0].name = "Fundo";
     doc.layers[0].canvas = c;
     doc.changed();
-    return add(doc);
+    add(doc);
+    PF.emit("opened", { canvas: c, name });
+    return doc;
   }
   async function fromProject(p, name, path) {
     const doc = new PF.Doc({ w: p.w, h: p.h, name: name.replace(/\.pfoto$/i, ""), path: null });
@@ -70,6 +72,18 @@ PF.io = (() => {
   const openDialog = async () => { try { return await openLoaded(await call("open-dialog")); } catch (e) { PF.toast(e.message, "err"); } };
   const openPath = async (p) => { try { return await openLoaded(await call("open-path", p)); } catch (e) { PF.toast(e.message, "err"); } };
 
+  // põe uma imagem como camada nova e já mostra as alças de tamanho (ferramenta Mover)
+  let hinted = false;
+  function place(c, name, at = null) {
+    const { fitted } = PF.ops.pasteCanvas(c, name, at);
+    if (S.tool !== "move") PF.selectTool("move");
+    if (fitted) PF.toast("A imagem era maior e foi reduzida para caber. Arraste os cantos para mudar o tamanho", "info");
+    else if (!hinted) PF.toast("Arraste os cantos da caixa para mudar o tamanho da imagem", "info");
+    hinted = true;
+    PF.emit("placed", { canvas: c, name });
+    return S.doc;
+  }
+
   // arquivo arrastado (File): com imagem aberta vira camada; sem imagem, abre
   async function openFile(file, asLayer = !!S.doc) {
     if (/\.pfoto$/i.test(file.name)) return openLoaded({ kind: "project", name: file.name, path: null, project: JSON.parse(await file.text()) });
@@ -77,7 +91,7 @@ PF.io = (() => {
     const url = URL.createObjectURL(file);
     try {
       const c = imgToCanvas(await loadImg(url)), name = file.name.replace(/\.[^.]+$/, "");
-      if (asLayer && S.doc) { PF.ops.pasteCanvas(c, name); return S.doc; }
+      if (asLayer && S.doc) return place(c, name);
       return fromImageCanvas(c, name, null);
     } finally { URL.revokeObjectURL(url); }
   }
@@ -119,6 +133,7 @@ PF.io = (() => {
     if (!r) return;
     doc.dirty = false;
     PF.emit("doc", doc);
+    PF.emit("exported", doc);
     PF.toast("Imagem exportada: " + r.name, "ok", { label: "Mostrar", run: () => call("show-item", r.path) });
   }
 
@@ -143,7 +158,7 @@ PF.io = (() => {
     if (clip && (!c || (c.width === clip.canvas.width && c.height === clip.canvas.height))) { c = clip.canvas; at = { x: clip.x, y: clip.y }; }
     if (!c) return PF.toast("Não há imagem na área de transferência", "warn");
     if (newDocument || !S.doc) return fromImageCanvas(PF.clone(c), name, null);
-    PF.ops.pasteCanvas(c, name, at && at.x + c.width <= S.doc.w && at.y + c.height <= S.doc.h ? at : null);
+    place(c, name, at && at.x + c.width <= S.doc.w && at.y + c.height <= S.doc.h ? at : null);
   }
 
   // ---------------------------------------------------------------- arrastar e soltar
@@ -153,6 +168,7 @@ PF.io = (() => {
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", async (e) => {
     e.preventDefault(); dragDepth = 0; $("#dropHint").hidden = true;
+    if (e.piphinHandled) return; // o inventário já tratou (imagem dele ou arquivos soltos na barra)
     for (const f of e.dataTransfer.files) { try { await openFile(f); } catch (err) { PF.toast(err.message, "err"); } }
   });
 
@@ -248,5 +264,5 @@ PF.io = (() => {
   });
   window.addEventListener("beforeunload", () => { piphin.invoke("ui-unload"); });
 
-  return { show, add, close, openDialog, openPath, openFile, openLoaded, newDoc, saveProject, exportImage, encode, copy, paste, fromImageCanvas };
+  return { show, add, close, openDialog, openPath, openFile, openLoaded, newDoc, place, loadImg, imgToCanvas, saveProject, exportImage, encode, copy, paste, fromImageCanvas };
 })();
