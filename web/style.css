@@ -10,7 +10,7 @@ body { display: flex; flex-direction: column; }
 .brand { display: flex; align-items: center; gap: 7px; font: 700 14px var(--p-font-display); color: #fff; margin-right: 6px; }
 .brand .i { color: var(--fx-accent); font-size: 18px; }
 .menus { display: flex; gap: 1px; }
-.menus button { height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--p-text-2); font: 500 13px var(--p-font); cursor: pointer; }
+.menus button { height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--p-text-2); font: 500 13px var(--p-font); cursor: pointer; white-space: nowrap; }
 .menus button:hover, .menus button.open { background: var(--p-hover); color: var(--p-text); }
 .menu-pop { position: fixed; z-index: 60; min-width: 250px; padding: 5px; border-radius: 12px; background: rgba(24, 22, 35, .97); border: 1px solid var(--p-line-2);
   box-shadow: var(--p-shadow-pop); backdrop-filter: blur(14px); animation: p-fade .1s; }
