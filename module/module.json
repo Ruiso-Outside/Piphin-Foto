@@ -8,7 +8,9 @@
   "icon": "icons/foto.png",
   "accent": "#fb923c",
   "minHub": "1.4.0",
-  "opens": ["image"],
+  "opens": [
+    "image"
+  ],
   "reservedKeys": [
     "ctrl+1",
     "ctrl+2",
@@ -220,6 +222,48 @@
         },
         "required": [
           "text"
+        ]
+      }
+    },
+    {
+      "name": "add_qr_code",
+      "title": "Colocar QR code",
+      "description": "Gera um QR code (link, texto, Wi-Fi no formato WIFI:T:WPA;S:rede;P:senha;;) e coloca como camada nova na imagem aberta. A pessoa pode mover e mudar o tamanho depois.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "O que o QR code abre: link, texto ou código de Wi-Fi"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "center",
+              "top-left",
+              "top-right",
+              "bottom-left",
+              "bottom-right",
+              "top",
+              "bottom"
+            ],
+            "description": "Onde colocar (padrão bottom-right)"
+          },
+          "size_percent": {
+            "type": "number",
+            "description": "Lado do QR em % do menor lado da imagem (padrão 30)"
+          },
+          "color": {
+            "type": "string",
+            "description": "Cor dos quadradinhos (padrão #000000)"
+          },
+          "background": {
+            "type": "string",
+            "description": "Cor do fundo (padrão #ffffff) ou transparent"
+          }
+        },
+        "required": [
+          "content"
         ]
       }
     },

@@ -250,4 +250,17 @@ PF.state = {
   text: { font: "Segoe UI", size: 64, bold: false, italic: false, align: "left", outline: false, shadow: false },
   crop: { ratio: "free" },
   move: { keepRatio: true },
+  qr: { type: "text", level: "M", fg: "#000000", bg: "#ffffff", transparent: false, margin: true },
+};
+
+// ------------------------------------------------------------------ QR code (codificador em js/vendor/qrcode.js)
+// módulos inteiros, bordas nítidas; size = lado mínimo em px; bg null = fundo transparente; margin = 4 módulos em volta
+PF.qrCanvas = (text, { level = "M", fg = "#000000", bg = "#ffffff", margin = true, size = 1024 } = {}) => {
+  const q = PF.qr(text, level), quiet = margin ? 4 : 0, n = q.size + quiet * 2, m = Math.max(1, Math.ceil(size / n));
+  const c = PF.canvas(n * m, n * m), g = PF.g(c);
+  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height); }
+  g.fillStyle = fg;
+  for (let r = 0; r < q.size; r++) for (let k = 0; k < q.size; k++) if (q.dark(r, k)) g.fillRect((k + quiet) * m, (r + quiet) * m, m, m);
+  c.modules = q.size;
+  return c;
 };

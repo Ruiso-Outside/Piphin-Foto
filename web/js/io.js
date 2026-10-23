@@ -74,8 +74,8 @@ PF.io = (() => {
 
   // põe uma imagem como camada nova e já mostra as alças de tamanho (ferramenta Mover)
   let hinted = false;
-  function place(c, name, at = null) {
-    const { fitted } = PF.ops.pasteCanvas(c, name, at);
+  function place(c, name, at = null, size = null) {
+    const { fitted } = PF.ops.pasteCanvas(c, name, at, size);
     if (S.tool !== "move") PF.selectTool("move");
     if (fitted) PF.toast("A imagem era maior e foi reduzida para caber. Arraste os cantos para mudar o tamanho", "info");
     else if (!hinted) PF.toast("Arraste os cantos da caixa para mudar o tamanho da imagem", "info");
@@ -252,6 +252,17 @@ PF.io = (() => {
       const d = need();
       const r = await encode(d, format, quality);
       return { ...r, suggested: d.name + "." + format };
+    },
+    add_qr_code: (a) => {
+      const d = need(), text = String(a.content || "").trim();
+      if (!text) throw new Error("Informe o conteúdo do QR code (link ou texto)");
+      const s = Math.round(Math.min(d.w, d.h) * clamp(Number(a.size_percent) || 30, 5, 100) / 100);
+      const pos = String(a.position || "bottom-right"), half = s / 2, pad = Math.round(Math.min(d.w, d.h) * 0.04);
+      const cx = /left/.test(pos) ? pad + half : /right/.test(pos) ? d.w - pad - half : d.w / 2;
+      const cy = /top/.test(pos) ? pad + half : /bottom/.test(pos) ? d.h - pad - half : d.h / 2;
+      const c = PF.qrCanvas(text, { level: "M", fg: a.color ? PF.hex(a.color) : "#000000", bg: a.background === "transparent" ? null : PF.hex(a.background || "#ffffff") });
+      PF.ops.pasteCanvas(c, "QR code", { cx, cy }, { w: s, h: s });
+      return { ok: true, layer: "QR code", size: s, modules: c.modules };
     },
     undo: () => { const d = need(); const label = d.undo(); if (!label) throw new Error("Não há nada para desfazer"); return { undone: label }; },
   };

@@ -245,6 +245,101 @@
     $("#lpN").onkeydown = (e) => { if (e.key === "Enter") ok(); };
   }
 
+  // QR code: link/texto, Wi-Fi ou WhatsApp, com prévia; entra como camada (sem imagem aberta, vira uma imagem nova)
+  function qrContent(v) {
+    if (v.type === "wifi") {
+      const e = (s) => String(s).replace(/([\\;,:"])/g, "\\$1");
+      return v.ssid.trim() ? `WIFI:T:${v.sec};S:${e(v.ssid.trim())};${v.sec === "nopass" ? "" : `P:${e(v.pass)};`}${v.hidden ? "H:true;" : ""};` : "";
+    }
+    if (v.type === "whatsapp") {
+      const n = v.phone.replace(/\D/g, "");
+      return n ? `https://wa.me/${n}${v.msg.trim() ? "?text=" + encodeURIComponent(v.msg.trim()) : ""}` : "";
+    }
+    return v.text.trim();
+  }
+  const lum = (hex) => { const [r, g, b] = PF.rgb(hex).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  function qrDialog() {
+    const d = doc(), o = S.qr;
+    const v = { type: o.type, text: "", ssid: "", pass: "", sec: "WPA", hidden: false, phone: "", msg: "",
+      size: d ? Math.max(64, Math.round(Math.min(d.w, d.h) * 0.35)) : 600 };
+    const TYPES = [["text", "link-2", "Link ou texto"], ["wifi", "wifi", "Wi-Fi"], ["whatsapp", "message-circle", "WhatsApp"]];
+    openModal(`<h3>QR code</h3>
+      <div class="qr-wrap">
+        <div class="qr-form">
+          <div class="seg mini" id="qrType">${TYPES.map(([k, ic, t]) => `<button data-type="${k}"><i class="i i-${ic}"></i>${t}</button>`).join("")}</div>
+          <div class="form" id="qrFields"></div>
+          <div class="form">
+            <div class="qr-row">
+              <label>Cor<input type="color" id="qrFg" value="${o.fg}"></label>
+              <label>Fundo<input type="color" id="qrBg" value="${o.bg}"></label>
+              <label class="qr-chk"><input type="checkbox" id="qrTr" ${o.transparent ? "checked" : ""}> Fundo transparente</label>
+            </div>
+            <label>Resistência a danos<select id="qrLvl">${[["L", "Baixa (7%)"], ["M", "Média (15%)"], ["Q", "Alta (25%)"], ["H", "Máxima (30%)"]]
+              .map(([k, t]) => `<option value="${k}" ${o.level === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+            <label class="qr-chk"><input type="checkbox" id="qrMargin" ${o.margin ? "checked" : ""}> Margem em volta (ajuda a câmera a ler)</label>
+            <label>${d ? "Tamanho na imagem (px)" : "Tamanho da imagem nova (px)"}<input type="number" id="qrSize" min="32" max="${d ? Math.min(d.w, d.h) : 4000}" value="${v.size}"></label>
+          </div>
+        </div>
+        <div class="qr-prev"><div class="qr-box"><canvas id="qrPrev"></canvas><span id="qrEmpty"></span></div><div class="size-note" id="qrNote"></div></div>
+      </div>
+      <div class="modal-actions"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok><i class="i i-qr-code"></i>${d ? "Pôr na imagem" : "Criar imagem"}</button></div>`, { cls: "wide" });
+    const passInput = () => $("#qrFields [data-v=pass]");
+    const fields = () => {
+      $$("#qrType button").forEach((b) => b.classList.toggle("on", b.dataset.type === v.type));
+      $("#qrFields").innerHTML = v.type === "wifi" ? `
+          <label>Nome da rede<input type="text" data-v="ssid" maxlength="64" value="${esc(v.ssid)}"></label>
+          <label>Senha<input type="text" data-v="pass" maxlength="128" value="${esc(v.pass)}" ${v.sec === "nopass" ? "disabled" : ""}></label>
+          <div class="qr-row"><label>Segurança<select data-v="sec">${[["WPA", "WPA / WPA2 / WPA3"], ["WEP", "WEP"], ["nopass", "Sem senha"]].map(([k, t]) => `<option value="${k}" ${v.sec === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+            <label class="qr-chk"><input type="checkbox" data-v="hidden" ${v.hidden ? "checked" : ""}> Rede oculta</label></div>`
+        : v.type === "whatsapp" ? `
+          <label>Número com código do país e DDD<input type="text" data-v="phone" inputmode="tel" placeholder="5511999998888" value="${esc(v.phone)}"></label>
+          <label>Mensagem pronta (opcional)<textarea data-v="msg" rows="2">${esc(v.msg)}</textarea></label>`
+        : `<label>Link ou texto<textarea data-v="text" rows="3" placeholder="https://">${esc(v.text)}</textarea></label>`;
+      const first = $("#qrFields [data-v]"); if (first) setTimeout(() => first.focus(), 0);
+    };
+    const style = () => ({ level: $("#qrLvl").value, fg: $("#qrFg").value, bg: $("#qrBg").value, transparent: $("#qrTr").checked, margin: $("#qrMargin").checked });
+    let current = null;
+    const update = () => {
+      const st = style(), text = qrContent(v), cv = $("#qrPrev"), note = $("#qrNote"), ok = box.querySelector("[data-ok]");
+      current = null; ok.disabled = true; cv.hidden = true;
+      $("#qrEmpty").textContent = "";
+      note.classList.remove("warn");
+      if (!text) { $("#qrEmpty").textContent = v.type === "wifi" ? "Digite o nome da rede" : v.type === "whatsapp" ? "Digite o número" : "Digite um link ou texto"; note.textContent = ""; return; }
+      try {
+        const c = PF.qrCanvas(text, { level: st.level, fg: st.fg, bg: st.transparent ? null : st.bg, margin: st.margin, size: 220 });
+        cv.width = c.width; cv.height = c.height; PF.g(cv).drawImage(c, 0, 0); cv.hidden = false;
+        current = { text, st };
+        ok.disabled = false;
+        const weak = !st.transparent && (lum(st.fg) > lum(st.bg) || (lum(st.bg) + 0.05) / (lum(st.fg) + 0.05) < 3);
+        note.textContent = weak ? "Pouco contraste: use quadradinhos escuros sobre fundo claro para a câmera ler bem."
+          : st.transparent ? "Com fundo transparente, deixe o QR sobre uma área clara da imagem." : "Teste com a câmera do celular antes de publicar.";
+        note.classList.toggle("warn", weak);
+      } catch (e) { note.textContent = e.message; note.classList.add("warn"); }
+    };
+    fields(); update();
+    $("#qrType").addEventListener("click", (e) => { const b = e.target.closest("[data-type]"); if (b) { v.type = b.dataset.type; fields(); update(); } });
+    const onField = (e) => {
+      const k = e.target.dataset.v; if (!k) return;
+      v[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+      if (k === "sec" && passInput()) passInput().disabled = v.sec === "nopass";
+      update();
+    };
+    $("#qrFields").addEventListener("input", onField);
+    $("#qrFields").addEventListener("change", onField);
+    for (const id of ["#qrFg", "#qrBg", "#qrTr", "#qrLvl", "#qrMargin"]) { $(id).addEventListener("input", update); $(id).addEventListener("change", update); }
+    box.querySelector("[data-x]").onclick = () => closeModal();
+    box.querySelector("[data-ok]").onclick = guard(async () => {
+      if (!current) return;
+      const { text, st } = current, d2 = doc();
+      const size = clamp(Math.round(Number($("#qrSize").value) || v.size), 32, d2 ? Math.min(d2.w, d2.h) : 4000);
+      S.qr = { ...st, type: v.type }; savePrefsSoon();
+      closeModal();
+      const bg = st.transparent ? null : st.bg;
+      if (d2) io.place(PF.qrCanvas(text, { level: st.level, fg: st.fg, bg, margin: st.margin, size: Math.max(1024, size) }), "QR code", null, { w: size, h: size });
+      else await io.fromImageCanvas(PF.qrCanvas(text, { level: st.level, fg: st.fg, bg, margin: st.margin, size }), "QR code", null);
+    });
+  }
+
   function shortcutsDialog() {
     const rows = [["V", "Mover"], ["M", "Seleção retangular / elíptica"], ["L", "Laço"], ["W", "Varinha mágica"], ["C", "Recortar"], ["B", "Pincel"], ["E", "Borracha"], ["S", "Carimbo"],
       ["G", "Balde / Degradê"], ["T", "Texto"], ["U", "Formas"], ["I", "Conta-gotas"], ["H ou Espaço", "Mão"], ["Z", "Zoom"], ["[ e ]", "Tamanho do pincel"], ["X", "Trocar cores"], ["D", "Preto e branco"],
@@ -270,6 +365,7 @@
     // Ctrl+T: alças da ferramenta Mover; com seleção, o diálogo de valores
     transform: needDoc(() => { if (doc().selection) return transformDialog(); selectTool("move"); PF.toast("Arraste os cantos da caixa para mudar o tamanho e a bolinha de cima para girar", "info"); }),
     "transform-values": needDoc(transformDialog),
+    qr: guard(qrDialog),
     "tf-fit": needDoc(() => PF.tools.move.place("fit")), "tf-fill": needDoc(() => PF.tools.move.place("fill")),
     "tf-original": needDoc(() => PF.tools.move.place("original")), "tf-center": needDoc(() => PF.tools.move.place("center")),
     "image-size": needDoc(imageSizeDialog), "canvas-size": needDoc(canvasSizeDialog),
@@ -315,7 +411,7 @@
     ["Camada", [["layer-new", "plus", "Nova camada", "Ctrl+Shift+N"], ["layer-dup", "copy", "Duplicar camada", "Ctrl+J"], ["layer-del", "trash-2", "Apagar camada"], "-",
       ["layer-merge", "merge", "Mesclar para baixo", "Ctrl+E"], ["layer-up", "arrow-up", "Subir camada", "Ctrl+]"], ["layer-down", "arrow-down", "Descer camada", "Ctrl+["], "-",
       ["layer-flip-h", "flip-horizontal-2", "Espelhar camada na horizontal"], ["layer-flip-v", "flip-vertical-2", "Espelhar camada na vertical"], ["layer-rot-180", "rotate-cw", "Girar camada 180°"],
-      ["layer-raster", "type", "Converter texto em pixels"], ["inv-save-layer", "archive", "Guardar camada no inventário"], ["layer-props", "pencil", "Renomear camada..."]]],
+      ["layer-raster", "type", "Converter texto em pixels"], ["inv-save-layer", "archive", "Guardar camada no inventário"], ["qr", "qr-code", "Adicionar QR code..."], ["layer-props", "pencil", "Renomear camada..."]]],
     ["Seleção", [["select-all", "square-dashed", "Selecionar tudo", "Ctrl+A"], ["deselect", "x", "Desmarcar", "Ctrl+D"], ["select-invert", "repeat-2", "Inverter seleção", "Ctrl+Shift+I"], "-",
       ["feather", "droplet", "Suavizar..."], ["grow", "expand", "Expandir..."], ["shrink", "shrink", "Contrair..."]]],
     ["Ajustes", [...Object.entries(PF.ADJUST).map(([k, d]) => ["adj-" + k, d.icon, d.name + "..."]), "-", ...Object.entries(PF.QUICK).map(([k, d]) => ["adj-" + k, d.icon, d.name])]],
@@ -329,7 +425,7 @@
   function showMenu(i, btn) {
     const [, items] = MENUS[i];
     pop.innerHTML = items.map((it) => it === "-" ? `<div class="sep"></div>`
-      : `<button class="mi" data-cmd="${it[0]}" ${!doc() && !["new", "open", "paste-new", "library", "shortcuts"].includes(it[0]) ? "disabled" : ""}><i class="i i-${it[1]}"></i>${esc(it[2])}${it[3] ? `<span class="k">${it[3]}</span>` : ""}</button>`).join("");
+      : `<button class="mi" data-cmd="${it[0]}" ${!doc() && !["new", "open", "paste-new", "library", "shortcuts", "qr"].includes(it[0]) ? "disabled" : ""}><i class="i i-${it[1]}"></i>${esc(it[2])}${it[3] ? `<span class="k">${it[3]}</span>` : ""}</button>`).join("");
     const r = btn.getBoundingClientRect();
     pop.style.left = r.left + "px"; pop.style.top = r.bottom + 4 + "px";
     pop.hidden = false;
@@ -403,7 +499,7 @@
     if (t) { setOpt(t.dataset.toggle, !getOpt(t.dataset.toggle)); optChanged(t.dataset.toggle); renderOptions(); }
   });
   let prefsTimer = 0;
-  const PREF_KEYS = ["brush", "eraser", "clone", "select", "wand", "fill", "gradient", "shape", "text", "crop", "move", "fg", "bg", "recentColors"];
+  const PREF_KEYS = ["brush", "eraser", "clone", "select", "wand", "fill", "gradient", "shape", "text", "crop", "move", "qr", "fg", "bg", "recentColors"];
   function savePrefsSoon() {
     clearTimeout(prefsTimer);
     prefsTimer = setTimeout(() => PF.call("prefs", Object.fromEntries(PREF_KEYS.map((k) => [k, S[k]]))).catch(() => {}), 800);

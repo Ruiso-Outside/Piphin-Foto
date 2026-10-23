@@ -215,7 +215,7 @@ exports.activate = (ctx) => {
   // a tela foi recarregada ou fechada: pedidos em andamento falham e a próxima chamada espera ela de novo
   ctx.handle("ui-unload", () => { uiReady = false; for (const p of pending.values()) p.reject(new Error("A tela do Piphin Foto foi fechada")); pending.clear(); return true; });
 
-  for (const name of ["image_info", "adjust_image", "apply_filter", "transform_image", "crop_image", "add_text", "undo"])
+  for (const name of ["image_info", "adjust_image", "apply_filter", "transform_image", "crop_image", "add_text", "add_qr_code", "undo"])
     ctx.handle("tool:" + name, (args) => toUi(name, args));
   ctx.handle("tool:open_image", async (args) => {
     const file = String((args && args.path) || "");

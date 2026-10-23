@@ -314,11 +314,12 @@ PF.ops = (() => {
   }
 
   // cola uma imagem como camada nova: centralizada, com o centro em at = { cx, cy } ou no canto at = { x, y } (mesmo lugar
-  // da cópia). Maior que a imagem aberta: diminui para caber (menos no mesmo lugar da cópia).
-  function pasteCanvas(img, name = "Colado", at = null) {
+  // da cópia). Maior que a imagem aberta: diminui para caber (menos no mesmo lugar da cópia). size = { w, h } na imagem.
+  function pasteCanvas(img, name = "Colado", at = null, size = null) {
     const d = need(), exact = at && at.x != null;
-    const k = exact ? 1 : Math.min(1, d.w / img.width, d.h / img.height);
-    const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+    const iw = size ? size.w : img.width, ih = size ? size.h : img.height;
+    const k = exact ? 1 : Math.min(1, d.w / iw, d.h / ih);
+    const w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
     const p = { img, w, h, angle: 0, x: exact ? at.x : Math.round((at ? at.cx : d.w / 2) - w / 2), y: exact ? at.y : Math.round((at ? at.cy : d.h / 2) - h / 2) };
     d.beginEdit("Colar", []);
     const l = d.addLayer(name, renderPlaced(d, p));

@@ -17,7 +17,7 @@ file-image sliders-horizontal sun contrast palette droplet droplets thermometer-
 flip-vertical-2 rotate-cw rotate-ccw scaling expand shrink grid-3x3 sun-moon swords waves ruler x check settings
 repeat-2 arrow-left-right ellipsis-vertical keyboard info clipboard-paste scissors square-dashed-mouse-pointer bold italic
 align-left align-center align-right text-cursor-input spline highlighter focus frame pipette bot layout-grid star clock library
-link unlink crosshair folder folder-plus folder-input images pencil-line panel-bottom-close panel-bottom-open archive package-open
+link unlink crosshair folder folder-plus folder-input images pencil-line panel-bottom-close panel-bottom-open archive package-open qr-code wifi message-circle link-2
 `.split(/\s+/).filter(Boolean);
 
 const css = [`/* Piphin Foto · ícones (Lucide ${require(path.join(LUCIDE, "package.json")).version}, ISC) · gerado por scripts/make-icons.js */`,
