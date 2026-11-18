@@ -5,6 +5,21 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+// Pastas do usuário: no Linux seguem o idioma do sistema (~/Imagens, ~/Músicas...) pelo user-dirs.dirs.
+// Se a pasta em inglês já existe (sistema em inglês ou dados de antes), continua nela.
+function userDir(name) { // "Pictures" | "Videos" | "Music" | "Documents" | "Downloads" | "Desktop"
+  const home = os.homedir(), en = path.join(home, name);
+  if (process.platform !== "linux" || fs.existsSync(en)) return en;
+  const key = { Pictures: "PICTURES", Videos: "VIDEOS", Music: "MUSIC", Documents: "DOCUMENTS", Downloads: "DOWNLOAD", Desktop: "DESKTOP" }[name];
+  try {
+    const cfg = fs.readFileSync(path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "user-dirs.dirs"), "utf8");
+    const m = new RegExp(`^XDG_${key}_DIR="(.+)"`, "m").exec(cfg);
+    const d = m && m[1].replace(/^\$HOME/, home);
+    if (d && path.isAbsolute(d) && d !== home) return d;
+  } catch { /* sem user-dirs.dirs */ }
+  return en;
+}
+
 const IMAGE_EXT = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "ico", "avif"];
 const MIME = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp", ico: "image/x-icon", avif: "image/avif" };
 const MAX_BYTES = 300 * 1024 * 1024;
@@ -14,7 +29,7 @@ exports.activate = (ctx) => {
   const PREFS_FILE = path.join(ctx.dataDir, "prefs.json");
   const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
   let recent = readJson(RECENT_FILE, []);
-  const exportDir = () => path.join(os.homedir(), "Pictures", "Piphin Foto");
+  const exportDir = () => path.join(userDir("Pictures"), "Piphin Foto");
 
   function remember(file) {
     recent = [file, ...recent.filter((f) => f.toLowerCase() !== file.toLowerCase())].slice(0, 12);
