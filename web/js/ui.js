@@ -397,7 +397,7 @@
 
   // ---------------------------------------------------------------- menus
   const MENUS = [
-    ["Arquivo", [["new", "file-plus", "Nova imagem...", "Ctrl+N"], ["open", "folder-open", "Abrir...", "Ctrl+O"], ["paste-new", "clipboard-paste", "Nova a partir da área de transferência"], ["library", "library", "Abrir da Mídia do Hub..."], "-",
+    ["Arquivo", [["new", "file-plus", "Nova imagem...", "Ctrl+N"], ["open", "folder-open", "Abrir...", "Ctrl+O"], ["paste-new", "clipboard-paste", "Nova a partir da área de transferência"], ["library", "library", "Abrir da Mídia da Central..."], "-",
       ["inv-save-image", "archive", "Guardar imagem no inventário"],
       ["save", "save", "Salvar projeto", "Ctrl+S"], ["save-as", "save", "Salvar projeto como...", "Ctrl+Shift+S"], ["export", "download", "Exportar imagem...", "Ctrl+Shift+E"], "-", ["close", "x", "Fechar imagem", "Ctrl+W"]]],
     ["Editar", [["undo", "undo-2", "Desfazer", "Ctrl+Z"], ["redo", "redo-2", "Refazer", "Ctrl+Shift+Z"], "-", ["cut", "scissors", "Recortar", "Ctrl+X"], ["copy", "copy", "Copiar", "Ctrl+C"],
@@ -421,7 +421,7 @@
   ];
   const pop = $("#menuPop");
   let openMenu = null;
-  let hubLib = false; // Hub 1.7.0+: Mídia compartilhada entre os módulos
+  let hubLib = false; // Central 1.7.0+: Mídia compartilhada entre os módulos
   function showMenu(i, btn) {
     const [, items] = MENUS[i];
     pop.innerHTML = items.map((it) => it === "-" ? `<div class="sep"></div>`
@@ -650,18 +650,18 @@
   async function renderHome() {
     const recent = await PF.call("recent").catch(() => []);
     $("#home").innerHTML = `<div class="home-in">
-      <div><h1><span>Piphin Foto</span></h1><p class="lead">Editor de imagens com camadas, seleções, pincéis, texto, ajustes e filtros.</p></div>
+      <div><h1><span>Arasaka Holo</span></h1><p class="lead">Editor de imagens com camadas, seleções, pincéis, texto, ajustes e filtros.</p></div>
       <div class="home-actions">
         <button class="big-act" data-cmd="new"><i class="i i-file-plus"></i><b>Nova imagem</b><span>Tela em branco ou transparente</span></button>
         <button class="big-act" data-cmd="open"><i class="i i-folder-open"></i><b>Abrir imagem</b><span>PNG, JPG, WebP, GIF, BMP ou projeto</span></button>
         <button class="big-act" data-cmd="paste-new"><i class="i i-clipboard-paste"></i><b>Colar</b><span>Imagem copiada ou print (Win+Shift+S)</span></button>
-        ${hubLib ? `<button class="big-act" data-cmd="library"><i class="i i-library"></i><b>Da Mídia</b><span>Prints do Piphin Captura e imagens dos outros módulos</span></button>` : ""}
+        ${hubLib ? `<button class="big-act" data-cmd="library"><i class="i i-library"></i><b>Da Mídia</b><span>Prints do Arasaka Scanner e imagens dos outros módulos</span></button>` : ""}
       </div>
       <div class="home-cols">
         <div class="home-card"><h3>Tamanhos prontos</h3>${PRESETS.slice(0, 7).map(([n, w, h]) => `<button class="preset" data-new="${w}x${h}"><span class="shape"><i style="width:${(w >= h ? 20 : (20 * w) / h).toFixed(1)}px;height:${(h >= w ? 20 : (20 * h) / w).toFixed(1)}px"></i></span>${esc(n)}<span class="dim">${w} × ${h}</span></button>`).join("")}</div>
         <div class="home-card"><h3>Abertos recentemente</h3>${recent.length ? recent.slice(0, 7).map((r) => `<button class="recent" data-recent="${esc(r.path)}"><i class="i i-${/\.pfoto$/i.test(r.name) ? "layers" : "file-image"}"></i><span class="nm"><span>${esc(r.name)}</span><span class="dir">${esc(r.dir)}</span></span></button>`).join("") : `<p class="opt-hint" style="margin:6px 10px">Nada por aqui ainda.</p>`}</div>
       </div>
-      <p class="tip">Dica: arraste imagens para cá para abrir. Com uma imagem aberta, arrastar outra cria uma camada nova. A IA do Piphin LLM também consegue editar aqui.</p>
+      <p class="tip">Dica: arraste imagens para cá para abrir. Com uma imagem aberta, arrastar outra cria uma camada nova. A IA do Arasaka Mikoshi também consegue editar aqui.</p>
     </div>`;
   }
   $("#home").addEventListener("click", (e) => {
@@ -747,7 +747,7 @@
     const feats = await PF.call("hub-features").catch(() => ({}));
     hubLib = !!(feats && feats.library);
     // chegou de outro módulo ("Abrir no Piphin Foto")
-    piphin.on("open-file", async (r) => { try { await io.openLoaded(r); PF.toast(`"${r.name}" chegou do ${r.from || "Hub"}`, "ok"); } catch (e) { PF.toast(e.message, "err"); } });
+    piphin.on("open-file", async (r) => { try { await io.openLoaded(r); PF.toast(`"${r.name}" chegou do ${r.from || "Central"}`, "ok"); } catch (e) { PF.toast(e.message, "err"); } });
     PF.emit("doc", null);
     piphin.invoke("ui-ready");
   })();

@@ -28,7 +28,7 @@ exports.activate = (ctx) => {
     if (st.size > MAX_BYTES) throw new Error("Arquivo grande demais (mais de 300 MB)");
     if (ext === "pfoto") {
       const project = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (!project || project.schema !== 1) throw new Error("Projeto do Piphin Foto inválido");
+      if (!project || project.schema !== 1) throw new Error("Projeto do Arasaka Holo inválido");
       remember(file);
       return { kind: "project", name: path.basename(file), path: file, project };
     }
@@ -49,7 +49,7 @@ exports.activate = (ctx) => {
   // salvar: bytes vêm da tela (Uint8Array). Sem caminho, pergunta onde salvar.
   ctx.handle("save", async ({ bytes, text, path: file, suggested, format }) => {
     if (!file) {
-      const filters = format === "pfoto" ? [{ name: "Projeto do Piphin Foto", extensions: ["pfoto"] }]
+      const filters = format === "pfoto" ? [{ name: "Projeto do Arasaka Holo", extensions: ["pfoto"] }]
         : [{ name: format.toUpperCase(), extensions: format === "jpg" ? ["jpg", "jpeg"] : [format] }];
       fs.mkdirSync(exportDir(), { recursive: true });
       file = await ctx.host.saveDialog({ title: format === "pfoto" ? "Salvar projeto" : "Exportar imagem", defaultPath: path.join(exportDir(), suggested || "imagem." + format), filters });
@@ -168,7 +168,7 @@ exports.activate = (ctx) => {
   };
   ctx.handle("hub-features", () => ({ library: !!lib }));
   ctx.handle("library-pick", async () => {
-    if (!lib) throw new Error("Atualize o Piphin Hub para usar a Mídia");
+    if (!lib) throw new Error("Atualize a Arasaka Central para usar a Mídia");
     const [it] = await lib.pick({ kinds: ["image"], multi: false, title: "Abrir da Mídia" });
     return it ? load(it.path) : null;
   });
@@ -197,9 +197,9 @@ exports.activate = (ctx) => {
   });
   async function ensureUi() {
     if (uiReady) return;
-    await ctx.host.focus().catch(() => {}); // mostra o Piphin Foto no Hub (carrega a tela)
+    await ctx.host.focus().catch(() => {}); // mostra o Arasaka Holo na Central (carrega a tela)
     await new Promise((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error("A tela do Piphin Foto não abriu")), 20000);
+      const t = setTimeout(() => reject(new Error("A tela do Arasaka Holo não abriu")), 20000);
       readyWaiters.push(() => { clearTimeout(t); resolve(); });
     });
   }
@@ -207,13 +207,13 @@ exports.activate = (ctx) => {
     await ensureUi();
     const id = ++seq;
     return new Promise((resolve, reject) => {
-      const t = setTimeout(() => { pending.delete(id); reject(new Error("O Piphin Foto não respondeu")); }, 120000);
+      const t = setTimeout(() => { pending.delete(id); reject(new Error("O Arasaka Holo não respondeu")); }, 120000);
       pending.set(id, { resolve: (v) => { clearTimeout(t); resolve(v); }, reject: (e) => { clearTimeout(t); reject(e); } });
       ctx.emit("ai-call", { id, name, args: args || {} });
     });
   }
   // a tela foi recarregada ou fechada: pedidos em andamento falham e a próxima chamada espera ela de novo
-  ctx.handle("ui-unload", () => { uiReady = false; for (const p of pending.values()) p.reject(new Error("A tela do Piphin Foto foi fechada")); pending.clear(); return true; });
+  ctx.handle("ui-unload", () => { uiReady = false; for (const p of pending.values()) p.reject(new Error("A tela do Arasaka Holo foi fechada")); pending.clear(); return true; });
 
   for (const name of ["image_info", "adjust_image", "apply_filter", "transform_image", "crop_image", "add_text", "add_qr_code", "undo"])
     ctx.handle("tool:" + name, (args) => toUi(name, args));
@@ -231,7 +231,7 @@ exports.activate = (ctx) => {
     fs.writeFileSync(file, Buffer.from(res.bytes));
     remember(file);
     toLibrary(file);
-    ctx.host.notify("Piphin Foto", "A IA salvou a imagem em " + file).catch(() => {});
+    ctx.host.notify("Arasaka Holo", "A IA salvou a imagem em " + file).catch(() => {});
     return { saved: file, width: res.width, height: res.height };
   });
 };

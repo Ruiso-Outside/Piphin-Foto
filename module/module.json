@@ -1,12 +1,12 @@
 {
   "id": "foto",
-  "name": "Piphin Foto",
+  "name": "Arasaka Holo",
   "version": "0.0.0",
   "description": "Editor de imagens completo: camadas, seleções, pincéis, texto, ajustes e filtros.",
   "main": "backend.js",
   "ui": "web/index.html",
   "icon": "icons/foto.png",
-  "accent": "#fb923c",
+  "accent": "#ff0000",
   "minHub": "1.4.0",
   "opens": [
     "image"
@@ -21,7 +21,7 @@
       "name": "image_info",
       "title": "Ver a imagem aberta",
       "readOnly": true,
-      "description": "Mostra a imagem aberta no Piphin Foto: nome, tamanho em pixels, camadas e se há seleção.",
+      "description": "Mostra a imagem aberta no Arasaka Holo: nome, tamanho em pixels, camadas e se há seleção.",
       "input": {
         "type": "object",
         "properties": {}
@@ -30,7 +30,7 @@
     {
       "name": "open_image",
       "title": "Abrir imagem",
-      "description": "Abre um arquivo de imagem (PNG, JPG, WebP, GIF, BMP) ou projeto .pfoto no Piphin Foto para editar.",
+      "description": "Abre um arquivo de imagem (PNG, JPG, WebP, GIF, BMP) ou projeto .pfoto no Arasaka Holo para editar.",
       "input": {
         "type": "object",
         "properties": {
@@ -295,7 +295,7 @@
     {
       "name": "undo",
       "title": "Desfazer",
-      "description": "Desfaz a última alteração no Piphin Foto.",
+      "description": "Desfaz a última alteração no Arasaka Holo.",
       "input": {
         "type": "object",
         "properties": {}
