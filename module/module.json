@@ -1,6 +1,6 @@
 {
   "id": "foto",
-  "name": "Arasaka Holo",
+  "name": "Arasaka Optics",
   "version": "0.0.0",
   "description": "Editor de imagens completo: camadas, seleções, pincéis, texto, ajustes e filtros.",
   "main": "backend.js",
@@ -21,7 +21,7 @@
       "name": "image_info",
       "title": "Ver a imagem aberta",
       "readOnly": true,
-      "description": "Mostra a imagem aberta no Arasaka Holo: nome, tamanho em pixels, camadas e se há seleção.",
+      "description": "Mostra a imagem aberta no Arasaka Optics: nome, tamanho em pixels, camadas e se há seleção.",
       "input": {
         "type": "object",
         "properties": {}
@@ -30,7 +30,7 @@
     {
       "name": "open_image",
       "title": "Abrir imagem",
-      "description": "Abre um arquivo de imagem (PNG, JPG, WebP, GIF, BMP) ou projeto .pfoto no Arasaka Holo para editar.",
+      "description": "Abre um arquivo de imagem (PNG, JPG, WebP, GIF, BMP) ou projeto .pfoto no Arasaka Optics para editar.",
       "input": {
         "type": "object",
         "properties": {
@@ -295,7 +295,7 @@
     {
       "name": "undo",
       "title": "Desfazer",
-      "description": "Desfaz a última alteração no Arasaka Holo.",
+      "description": "Desfaz a última alteração no Arasaka Optics.",
       "input": {
         "type": "object",
         "properties": {}

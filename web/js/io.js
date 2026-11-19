@@ -103,7 +103,7 @@ PF.io = (() => {
 
   // ---------------------------------------------------------------- salvar
   function projectJson(doc) {
-    return JSON.stringify({ schema: 1, app: "Arasaka Holo", w: doc.w, h: doc.h, active: doc.layers.indexOf(doc.active),
+    return JSON.stringify({ schema: 1, app: "Arasaka Optics", w: doc.w, h: doc.h, active: doc.layers.indexOf(doc.active),
       layers: doc.layers.map((l) => ({ name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, text: l.text, png: l.canvas.toDataURL("image/png") })) });
   }
   async function saveProject(as = false) {
@@ -175,7 +175,7 @@ PF.io = (() => {
   // ---------------------------------------------------------------- pedidos da IA (Piphin LLM, via Hub)
   const POS = { top: [0.5, 0.06, "center"], center: [0.5, 0.45, "center"], bottom: [0.5, 0.86, "center"], "top-left": [0.05, 0.06, "left"],
     "top-right": [0.95, 0.06, "right"], "bottom-left": [0.05, 0.86, "left"], "bottom-right": [0.95, 0.86, "right"] };
-  const need = () => { if (!S.doc) throw new Error("Nenhuma imagem aberta no Arasaka Holo. Use open_image para abrir uma."); return S.doc; };
+  const need = () => { if (!S.doc) throw new Error("Nenhuma imagem aberta no Arasaka Optics. Use open_image para abrir uma."); return S.doc; };
   const info = () => {
     const d = S.doc;
     if (!d) return { open: false, note: "Nenhuma imagem aberta. Use open_image." };

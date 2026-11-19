@@ -650,7 +650,7 @@
   async function renderHome() {
     const recent = await PF.call("recent").catch(() => []);
     $("#home").innerHTML = `<div class="home-in">
-      <div><h1><span>Arasaka Holo</span></h1><p class="lead">Editor de imagens com camadas, seleções, pincéis, texto, ajustes e filtros.</p></div>
+      <div><h1><span>Arasaka Optics</span></h1><p class="lead">Editor de imagens com camadas, seleções, pincéis, texto, ajustes e filtros.</p></div>
       <div class="home-actions">
         <button class="big-act" data-cmd="new"><i class="i i-file-plus"></i><b>Nova imagem</b><span>Tela em branco ou transparente</span></button>
         <button class="big-act" data-cmd="open"><i class="i i-folder-open"></i><b>Abrir imagem</b><span>PNG, JPG, WebP, GIF, BMP ou projeto</span></button>

@@ -1,6 +1,8 @@
-# Piphin Foto
+# Arasaka Optics
 
-Editor de imagens completo, módulo do [Piphin Hub](https://github.com/Ruiso-Outside/Piphin-Hub). Roda dentro do Hub (cerca de 140 KB).
+> Antes chamado **Piphin Foto**. Os arquivos, pastas e dados continuam com o nome antigo.
+
+Editor de imagens completo, módulo do [Arasaka Central](https://github.com/Ruiso-Outside/ArasakaCentral). Roda dentro do Hub (cerca de 140 KB).
 
 - **Ferramentas**: mover, seleção retangular/elíptica, laço, varinha mágica, recortar, pincel, borracha, carimbo, balde, degradê, texto editável, formas, conta-gotas, mão e zoom
 - **Camadas**: opacidade, 16 modos de mesclagem, mostrar/ocultar, bloquear, duplicar, mesclar, reordenar arrastando
@@ -12,10 +14,10 @@ Editor de imagens completo, módulo do [Piphin Hub](https://github.com/Ruiso-Out
 - **QR code**: Camada → Adicionar QR code (ou o botão no painel de camadas) gera QR de link ou texto, Wi-Fi e WhatsApp, com cores, fundo transparente, resistência a danos e prévia; entra como camada que dá para mover e mudar o tamanho. Sem imagem aberta, cria uma imagem só com o QR
 - **Histórico** com desfazer/refazer, várias imagens em abas, atalhos parecidos com os do Photoshop
 - **Arquivos**: abrir PNG, JPG, WebP, GIF, BMP; colar da área de transferência; arrastar e soltar; projeto editável (`.pfoto`); exportar PNG, JPG e WebP
-- **IA**: com o Piphin LLM, a IA pode abrir, ajustar, filtrar, recortar, redimensionar, escrever texto colocar QR code e salvar imagens (ferramentas no `module/module.json`)
+- **IA**: com o Arasaka Mikoshi, a IA pode abrir, ajustar, filtrar, recortar, redimensionar, escrever texto colocar QR code e salvar imagens (ferramentas no `module/module.json`)
 
 ## Mídia do Hub
-Com o Piphin Hub 1.7.0 ou mais novo: **Da Mídia** no início (e Arquivo → Abrir da Mídia do Hub) abre prints do Piphin Captura e imagens dos outros módulos, **Abrir no Piphin Foto** de outro módulo abre a imagem aqui, e as imagens exportadas aparecem na Mídia.
+Com a Arasaka Central 1.7.0 ou mais novo: **Da Mídia** no início (e Arquivo → Abrir da Mídia do Hub) abre prints do Arasaka Scanner e imagens dos outros módulos, **Abrir no Arasaka Optics** de outro módulo abre a imagem aqui, e as imagens exportadas aparecem na Mídia.
 
 ## Estrutura
 
